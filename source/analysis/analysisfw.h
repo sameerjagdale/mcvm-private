@@ -31,8 +31,9 @@ namespace mcvm { namespace analysis {
 
             // Returned info
             std::vector<FlowInfo> return_points_ ;
-            FlowInfo returns_ ; std::stack<FlowInfo> recursive_returns_ ;
-            
+            FlowInfo returns_ ; 
+            std::stack<FlowInfo> recursive_returns_ ;
+
             std::unordered_map<IIRNode*,FlowInfo> data_ ;
             std::unordered_set<ProgFunction*> recursive_ ;
             bool recursion_ ;
@@ -53,12 +54,20 @@ namespace mcvm { namespace analysis {
                         )> ;
 
             ExpressionFn<Expression> expression_ ;
+            ExpressionFn<CellIndexExpr> cellindex_;
             ExpressionFn<IntConstExpr> intconst_;
+            ExpressionFn<FnHandleExpr> fnhandle_;
+            ExpressionFn<LambdaExpr> lambda_;
+            ExpressionFn<CellArrayExpr> cellarray_;
+            ExpressionFn<FPConstExpr> fpconst_;
             ExpressionFn<ParamExpr> paramexpr_;
             ExpressionFn<BinaryOpExpr> binop_;
+            ExpressionFn<UnaryOpExpr> unaryop_;
             ExpressionFn<MatrixExpr> matrix_;
             ExpressionFn<StrConstExpr> str_;
             ExpressionFn<SymbolExpr> symbol_function_;
+            ExpressionFn<EndExpr> end_;
+            ExpressionFn<RangeExpr> range_;
 
             template <typename Stmt>
                 using TransferFn = std::function<FlowInfo(
@@ -74,16 +83,6 @@ namespace mcvm { namespace analysis {
             TransferFn<LoopStmt> loopstmt_ ;
         };
 
-    template <typename FlowInfo, typename ExprInfo>
-        AnalyzerContext<FlowInfo> analyze(
-                const Analyzer<FlowInfo,ExprInfo>& analyzer,
-                ProgFunction* function
-                )
-        {
-            AnalyzerContext<FlowInfo> context ;
-            return analyze(analyzer,context,function) ;
-        }
-            
     template <typename FlowInfo>
         FlowInfo merge_list(
                 const std::vector<FlowInfo>& infos,
@@ -97,26 +96,73 @@ namespace mcvm { namespace analysis {
             return merged ;
         }
     
+    //DISCLAIMER: we suppose that everything is a symbolexpr
+    template <typename FlowInfo, typename ExprInfo, typename Info>
+        ExprInfo compute_returned_vector (
+                const std::vector<FlowInfo>& infos,
+                const std::function<FlowInfo(FlowInfo&,FlowInfo&)>& merge,
+                const ProgFunction* function ) {
+            
+            auto params = function->getOutParams() ;
+            ExprInfo ret ;
+            auto l = merge_list(infos,merge) ;
+            for (auto param: params) {
+                auto itr = l.find (param) ;
+                if (itr != std::end(l)) {
+                    ret.push_back(itr->second) ;
+                }
+            }
+            return ret ;
+        }
+
+                
+    template <typename FlowInfo, typename ExprInfo, typename Info>
+        AnalyzerContext<FlowInfo> analyze(
+                const Analyzer<FlowInfo,ExprInfo>& analyzer,
+                AnalyzerContext<FlowInfo>& context,
+                ProgFunction* function,
+                const std::vector<Info>& params
+                )
+        {
+            // Construct the correct input flowinfo
+            auto fun_params = function->getInParams() ;
+            
+            auto it_caller =  params.begin() ;
+            auto it_callee = fun_params.begin() ;
+
+            /* We iterate only over lefts expression because there can be less left
+             * than right
+             *
+             * call function(1344) 
+             * ex : function (a,b,c) 
+             * 
+             */
+            FlowInfo i ;
+            for (;
+                    it_caller != std::end(params);
+                    ++it_caller, ++it_callee) {
+                i [ (SymbolExpr*) *it_callee] = *it_caller ;
+            }
+            return analyze(analyzer,context,function,i) ;
+        }
 
     template <typename FlowInfo, typename ExprInfo>
         AnalyzerContext<FlowInfo> analyze(
                 const Analyzer<FlowInfo,ExprInfo>& analyzer,
                 AnalyzerContext<FlowInfo>& context,
-                ProgFunction* function
+                ProgFunction* function,
+                const FlowInfo& entry
                 )
         {
             auto body = function->getCurrentBody() ;
             context.local_env_ = ProgFunction::getLocalEnv(function);
             context.recursive_.insert(function) ;
             context.recursion_ = false ;
-            FlowInfo entry ;
             auto end_info = analyzer.sequencestmt_ (body,analyzer,context,entry) ;
             context.return_points_.push_back(end_info) ;
             std::cout << "return size" << context.return_points_.size() << std::endl ;
             
             // Compute the return flowinfo from returns point
-            auto params = function->getOutParams() ;
-            //DISCLAIMER: we suppose that everything is a symbolexpr
             context.returns_ = 
                 merge_list(
                         context.return_points_,
@@ -144,40 +190,6 @@ namespace mcvm { namespace analysis {
             return new_context ;
         }
 
-    template <typename FlowInfo,typename ExprInfo>
-        FlowInfo assignstmt(
-                const AssignStmt* assign,
-                const Analyzer<FlowInfo,ExprInfo>& analyzer,
-                AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in
-                )
-        {
-            auto out = in ;
-
-            auto rights = analyzer.expression_ (assign->getRightExpr(),analyzer,context,in) ;
-            auto lefts = assign->getLeftExprs() ;
-
-            if (rights.size() < lefts.size() ) {
-                std::cout << "Not enough returned values" << rights.size() << std::endl << lefts.size() << std::endl ;
-                return in ;
-                //throw std::exception() ;
-            }
-
-            auto it1 =  rights.begin() ;
-            auto it2 = lefts.begin() ;
-
-            /* We iterate only over lefts expression because there can be less left
-             * than right
-             * ex : [a,b] = <std::vector>.size 3 is valid
-             */
-            for (;
-                    it2 != lefts.end() ;
-                    ++it1 , ++it2 ) {
-                out[ (SymbolExpr*) *it2] = *it1 ;
-            }
-
-            return out;
-        }
 
     template <typename FlowInfo, typename ExprInfo>
         FlowInfo sequencestmt(
@@ -188,6 +200,7 @@ namespace mcvm { namespace analysis {
                 ){
             auto current = in ;
             for (auto st: seq->getStatements() ) {
+                std::cout << st->toString() << std::endl ;
                 switch (st->getStmtType()) {
                     case Statement::ASSIGN:
                         current = analyzer.assignstmt_(
@@ -273,20 +286,29 @@ namespace mcvm { namespace analysis {
                 case Expression::ExprType::MATRIX:
                     return analyzer.matrix_((MatrixExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::FN_HANDLE:
+                    return analyzer.fnhandle_((FnHandleExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::LAMBDA:
+                    return analyzer.lambda_((LambdaExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::CELLARRAY:
+                    return analyzer.cellarray_((CellArrayExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::END:
+                    return analyzer.end_((EndExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::RANGE:
+                    return analyzer.range_((RangeExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::STR_CONST:
                     return analyzer.str_((StrConstExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::FP_CONST:
+                    return analyzer.fpconst_((FPConstExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::BINARY_OP:
                     return analyzer.binop_((BinaryOpExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::UNARY_OP:
+                    return analyzer.unaryop_((UnaryOpExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::CELL_INDEX:
+                    return analyzer.cellindex_((CellIndexExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::INT_CONST:
                     return analyzer.intconst_((IntConstExpr*)expr,analyzer,context,in ) ;
-
+                case Expression::ExprType::PARAM:
+                    return analyzer.paramexpr_( (ParamExpr*)expr, analyzer, context, in) ;
                 case Expression::ExprType::SYMBOL:
                     {
                         auto s = (SymbolExpr*)expr;
@@ -296,10 +318,6 @@ namespace mcvm { namespace analysis {
                         }
                         return analyzer.symbol_function_(s,analyzer,context,in) ;
                     }
-                    
-                case Expression::ExprType::PARAM:
-                    return analyzer.paramexpr_( (ParamExpr*)expr, analyzer, context, in) ;
-                    
             }
             return {};
         }

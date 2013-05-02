@@ -23,6 +23,7 @@ struct Lattice
         STRUCTARRAY,
         CELLARRAY,
         CHARARRAY,
+	LOGICALARRAY,
         PROGFUNCTION,
         LIBFUNCTION,
         FNHANDLE
@@ -30,18 +31,23 @@ struct Lattice
    
     mclass type_ ;
     std::vector<size_t> size_ ;
-    std::vector<std::unique_ptr<Lattice>> cells_ ;
-    std::unordered_map<std::string,std::unique_ptr<Lattice>> fields_ ;
+    //std::vector<std::unique_ptr<Lattice>> cells_ ;
+    //std::unordered_map<std::string,std::unique_ptr<Lattice>> fields_ ;
     Function* function_ ;
     bool integer_only_ ;
     
     Lattice(mclass) ;
-    Lattice() = delete ;
+    Lattice() = default ;
+    Lattice(const Lattice&) = default ;
     
     std::string toString() const;
     bool operator==(const Lattice&) const;
 
 };
+
+namespace typemap {
+  std::vector<Lattice> logical_op (const Lattice&, const Lattice&) ;
+}
 
 }}}
 

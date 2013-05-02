@@ -13,10 +13,9 @@ class MatrixExpr;
 
 namespace mcvm { namespace analysis { namespace ti {
 
-    using TypeInfo = Lattice ;
-    using TypeInfoPtr = Lattice* ;
-    using Info = std::unordered_map<SymbolExpr*,TypeInfoPtr> ;
-    using ExprInfo = std::vector<TypeInfoPtr> ;
+    using FlowInfo = std::unordered_map<SymbolExpr*,Lattice> ;
+    using Info = FlowInfo ;
+    using ExprInfo = std::vector<Lattice> ;
 
     class TypeError : public std::exception {};
 
@@ -41,6 +40,13 @@ namespace mcvm { namespace analysis { namespace ti {
             const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in);
+
+    Info assignstmt(
+            const AssignStmt* assign,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in
+            );
 
     Analyzer<Info,ExprInfo> get_analyzer();
 
