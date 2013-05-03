@@ -19,6 +19,14 @@ namespace mcvm { namespace analysis { namespace ti {
 
     class TypeError : public std::exception {};
 
+    FlowInfo construct_function_environment(
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in,
+            const std::vector<Expression*>& caller,
+            const std::vector<SymbolExpr*>& callee
+            );
+    
     Info merge(
             const Info& a,
             const Info& b);
@@ -29,6 +37,12 @@ namespace mcvm { namespace analysis { namespace ti {
             AnalyzerContext<Info>& context,
             const Info& in);
 
+    ExprInfo lambda(
+            const LambdaExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in);
+    
     ExprInfo paramexpr(
             const ParamExpr* expr,
             const Analyzer<Info,ExprInfo>& analyzer,

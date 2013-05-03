@@ -7,7 +7,9 @@
 #include <vector>
 #include <string>
 
-class Function;
+class Function ;
+class LambdaExpr ;
+class SymbolExpr ;
 
 namespace mcvm { namespace analysis { namespace ti {
     
@@ -26,6 +28,7 @@ struct Lattice
 	LOGICALARRAY,
         PROGFUNCTION,
         LIBFUNCTION,
+        LAMBDA,
         FNHANDLE
     };
    
@@ -33,8 +36,15 @@ struct Lattice
     std::vector<size_t> size_ ;
     //std::vector<std::unique_ptr<Lattice>> cells_ ;
     //std::unordered_map<std::string,std::unique_ptr<Lattice>> fields_ ;
-    Function* function_ ;
+    const Function* function_ ;
     bool integer_only_ ;
+    
+
+    //Lambda
+    const LambdaExpr* lambda_ ;
+    
+    Lattice* fnhandle_ ;
+    std::unordered_map<SymbolExpr*,const Lattice*> env_ ;
     
     Lattice(mclass) ;
     Lattice() = default ;
@@ -47,6 +57,7 @@ struct Lattice
 
 namespace typemap {
   std::vector<Lattice> logical_op (const Lattice&, const Lattice&) ;
+  std::vector<Lattice> mult_op (const Lattice&, const Lattice&) ;
 }
 
 }}}

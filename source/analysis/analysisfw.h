@@ -45,9 +45,9 @@ namespace mcvm { namespace analysis {
 
             std::function<FlowInfo(FlowInfo&,FlowInfo&)> merge_ ;
 
-            template <typename Expression>
+            template <typename E>
                 using ExpressionFn = std::function<ExprInfo(
-                        const Expression*,
+                        const E*,
                         const Analyzer<FlowInfo,ExprInfo>&,
                         AnalyzerContext<FlowInfo>&,
                         const FlowInfo& //in set

@@ -22,6 +22,13 @@ namespace mcvm { namespace analysis { namespace ti {
       case mclass::LOGICALARRAY:
 	res += "logical";
 	break;
+      case mclass::FNHANDLE:
+	res += "@fnhandle -> ";
+        res += fnhandle_->toString() ;
+	break;
+      case mclass::LAMBDA:
+	res += "lambda";
+	break;
       default:
 	break;
     }
@@ -52,6 +59,12 @@ namespace mcvm { namespace analysis { namespace ti {
       return {ret} ;
     }
     
-  } // typemap namespace
-  
+    std::vector<Lattice> mult_op (const Lattice&, const Lattice&) {
+        Lattice ret ;
+        // the mclass "*" matrix (cf Anton thesis)
+        ret.type_ = Lattice::mclass::DOUBLE;
+        return {ret} ;
+    }
+}
+
 }}}

@@ -19,6 +19,26 @@ namespace mcvm { namespace analysis { namespace ti {
         return ret ;
     }
 
+    ExprInfo lambda(
+            const LambdaExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in)
+    {
+        Lattice l (Lattice::mclass::FNHANDLE) ;
+        
+        auto u = (new Lattice (Lattice::mclass::LAMBDA)) ;
+        u->lambda_ = expr ;
+        
+        for (auto& var:in) {
+            u->env_ [var.first ] = & var.second;
+        }
+
+        l.fnhandle_ = u ;
+
+        return {l} ;
+    }
+    
     ExprInfo intconst(
             const IntConstExpr* expr,
             const Analyzer<Info,ExprInfo>& analyzer,
@@ -40,6 +60,10 @@ namespace mcvm { namespace analysis { namespace ti {
         auto leftexpr = expr->getSymExpr() ;
         auto left = analyzer.expression_(leftexpr,analyzer,context,in);
         auto v = * left.begin() ;
+
+        if (v.type_ == Lattice::mclass::FNHANDLE) {
+            v = * v.fnhandle_ ;
+        }
 
         switch (v.type_) {
             case Lattice::mclass::LIBFUNCTION:
@@ -63,23 +87,19 @@ namespace mcvm { namespace analysis { namespace ti {
                                         progfunction);
                             return ret ;
                         }
-                    } else {
-                        // Not recursive, analyze it
-
+                    } else { // Not recursive, analyze it
+                        
                         // Construct the param args
-                        auto params = expr->getArguments() ;
-                        std::vector<Lattice> v ;
-                        for (auto param : params) {
-                            std::cout << "pAram : " << param->toString() << std::endl ;
-                            auto itr = in.find ( (SymbolExpr*)param) ;
-                            if ( itr != std::end(in) ) {
-                                v.push_back(itr->second) ;
-                                std::cout << " p : " << itr->second.toString() << std::endl ;
-                            }
-                        }
+                        auto input_env = construct_function_environment(
+                                analyzer,
+                                context,
+                                in,
+                                expr->getArguments(),
+                                progfunction->getInParams());
+                        
                         //Analyze it
                         AnalyzerContext<FlowInfo> c ;
-                        c = analyze(analyzer,c,progfunction,v) ; 
+                        c = analyze(analyzer,c,progfunction,input_env) ; 
 
                         //Get the output types
                         auto ret = 
@@ -92,7 +112,37 @@ namespace mcvm { namespace analysis { namespace ti {
                 }
                 break;
 
+            case Lattice::mclass::LAMBDA:
+                {
+                    // Create the input flowinfo
+                    // from lambda environment and params
+                   
+                    auto input_env = construct_function_environment(
+                            analyzer,
+                            context,
+                            in,
+                            expr->getArguments(),
+                            v.lambda_->getInParams());
+                    
+                    // Add the lambda environment
+                    for (auto& var:v.env_) {
+                        auto itr = input_env.find (var.first) ;
+                        if ( itr == std::end(input_env)) {
+                            input_env [var.first] = * var.second ;
+                        }
+                    }
+
+                            
+                    // Analyze the body
+                    return analyzer.expression_(
+                            v.lambda_->getBodyExpr() ,
+                            analyzer,
+                            context,
+                            input_env);
+                }
+                
             default:
+                assert(false) ;
                 break;
         }
     }
@@ -106,7 +156,7 @@ namespace mcvm { namespace analysis { namespace ti {
         DataObject* pObject;
         try
         {
-            assert (local_env_ != nullptr) ;
+            assert (context.local_env_ != nullptr) ;
             pObject = Interpreter::evalSymbol(expr,context.local_env_);
         }
         catch (RunError e)
@@ -164,38 +214,14 @@ namespace mcvm { namespace analysis { namespace ti {
 		case BinaryOpExpr::MINUS:
 		case BinaryOpExpr::ARRAY_MULT:
 		case BinaryOpExpr::ARRAY_POWER:
-		{
-			// Perform type inference for the array operation
 			return {} ; //arrayArithOpTypeMapping<true>(argTypes);
-		};
-		break;
-		
-		// Array arithmetic operation (non int preserving)
 		case BinaryOpExpr::ARRAY_DIV:
 		case BinaryOpExpr::ARRAY_LEFT_DIV:
-		{
-			// Perform type inference for the array operation
 			return {} ; //arrayArithOpTypeMapping<false>(argTypes);
-		}
-		break;
-		
-		// Multiplication operation
 		case BinaryOpExpr::MULT:
-		{
-			// Perform type inference for the multiplication operation
-			return {} ; // multOpTypeMapping(argTypes);
-		}
-		break;
-		
-		// Division operation
+			return typemap::mult_op(l,r);
 		case BinaryOpExpr::DIV:
-		{
-			// Perform type inference for the division operation
 			return {} ; //divOpTypeMapping(argTypes);
-		}
-		break;			
-			
-		// Left division operation
 		case BinaryOpExpr::LEFT_DIV:
 		{
 			// Perform type inference for the division operation
@@ -279,12 +305,48 @@ namespace mcvm { namespace analysis { namespace ti {
             return out;
         }
         
+    FlowInfo construct_function_environment(
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const FlowInfo& in,
+            const std::vector<Expression*>& caller,
+            const std::vector<SymbolExpr*>& callee
+            )
+    {
+        auto it1 = caller.begin() ;
+        auto it2 = callee.begin() ;
+
+        FlowInfo res ;
+
+        for (;
+                it1 != std::end(caller) ;
+                ++it1 , ++it2 ) {
+            
+            const Expression* expr = *it1 ;
+
+            auto vec = analyzer.expression_(
+                    expr,
+                    analyzer,
+                    context,
+                    in);
+            
+            assert (vec.size() == 1) ;
+            auto front = vec.front() ;
+
+            res [*it2] = front ;
+        }
+
+        return res;
+    }
+
+    
     Analyzer<Info,ExprInfo> get_analyzer() {
         Analyzer<Info,ExprInfo> ret ;
         ret.sequencestmt_ = &sequencestmt<Info,ExprInfo> ;
         ret.expression_ = &expression<Info,ExprInfo> ;
         
         ret.assignstmt_ = &ti::assignstmt ;
+        ret.lambda_ = &ti::lambda ;
         ret.intconst_ = &ti::intconst ;
         ret.paramexpr_ = &ti::paramexpr ;
         ret.symbol_function_ = &ti::symbol_function ;
