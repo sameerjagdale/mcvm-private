@@ -63,6 +63,12 @@ namespace mcvm { namespace analysis { namespace ti {
             AnalyzerContext<Info>& context,
             const Info& in);
 
+    ExprInfo dotexpr(
+            const DotExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in);
+    
     ExprInfo symbol_function(
             const SymbolExpr* expr,
             const Analyzer<Info,ExprInfo>& analyzer,

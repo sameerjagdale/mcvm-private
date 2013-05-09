@@ -64,6 +64,35 @@ namespace mcvm { namespace analysis { namespace ti {
         return {lattice} ;
     }
 
+    ExprInfo dotexpr(
+            const DotExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in)
+    {
+        auto left_lattice = analyzer.expression_ (
+                expr->getExpr(),
+                analyzer,
+                context,
+                in) ;
+       
+        if (left_lattice.size() != 1) 
+            return {} ;
+        
+        auto lattice = left_lattice.front() ;
+        if (lattice.type_ != Lattice::mclass::STRUCTARRAY)
+            return {} ;
+        
+        auto& f = lattice.fields_ ;
+        auto itr = f.find (expr->getField()) ;
+        
+        if (itr == std::end(f))
+            return {} ;
+
+        auto ret = *itr->second ;
+        return {ret} ;
+    }
+    
     ExprInfo paramexpr(
             const ParamExpr* expr,
             const Analyzer<Info,ExprInfo>& analyzer,
@@ -427,6 +456,7 @@ namespace mcvm { namespace analysis { namespace ti {
         ret.lambda_ = &ti::lambda ;
         ret.intconst_ = &ti::intconst ;
         ret.paramexpr_ = &ti::paramexpr ;
+        ret.dotexpr_ = &ti::dotexpr ;
         ret.cellindex_ = &ti::cellindex ;
         ret.cellarray_ = &ti::cellarray ;
         ret.symbol_function_ = &ti::symbol_function ;
