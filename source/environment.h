@@ -21,12 +21,11 @@
 #define ENVIRONMENT_H_
 
 // Header files
-#include <ext/hash_map>
 #include <vector>
-#include <gc_cpp.h>
 #include "symbolexpr.h"
 #include "objects.h"
 #include "utility.h"
+#include <unordered_map>
 
 /***************************************************************
 * Class   : Environment
@@ -69,7 +68,7 @@ private:
 	Environment(Environment* pParent);
 	
 	// Symbol map type definition
-	typedef __gnu_cxx::hash_map<SymbolExpr*, DataObject*, IntHashFunc<SymbolExpr*>, __gnu_cxx::equal_to<SymbolExpr*>, gc_allocator<DataObject*> > SymbolMap;
+	typedef std::unordered_map<SymbolExpr*, DataObject*> SymbolMap;
 	
 	// Bindings of the environment
 	SymbolMap m_bindings;

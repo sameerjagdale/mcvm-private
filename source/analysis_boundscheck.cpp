@@ -31,6 +31,7 @@
 #include <iostream>
 #include <iterator>
 #include <cassert>
+#include <algorithm>
 #include "analysis_boundscheck.h"
 
 /*******************************************************************

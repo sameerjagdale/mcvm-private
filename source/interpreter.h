@@ -21,7 +21,6 @@
 #define INTERPRETER_H_
 
 // Header files
-#include <ext/hash_map>
 #include <string>
 #include <stack>
 #include <set>
@@ -193,7 +192,8 @@ private:
 		TypeInferInfo* pTypeInferInfo;
 
 		// Validation count map
-		typedef __gnu_cxx::hash_map<const IIRNode*, size_t, IntHashFunc<const IIRNode*>, __gnu_cxx::equal_to<const IIRNode*> > ValidCountMap;
+		typedef std::unordered_map<const IIRNode*, size_t> ValidCountMap;
+                
 		ValidCountMap validCountMap;
 	};
 

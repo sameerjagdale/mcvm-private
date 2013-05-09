@@ -44,6 +44,7 @@ public:
 	enum ExprType
 	{
 		PARAM,
+                DOT,
 		CELL_INDEX,
 		BINARY_OP,
 		UNARY_OP,
@@ -60,7 +61,7 @@ public:
 	};
 	
 	// Expression vector type definition
-	typedef std::vector<Expression*, gc_allocator<Expression*> > ExprVector;
+	typedef std::vector<Expression*> ExprVector;
 	
 	// Symbol set type definition
 	typedef std::set<SymbolExpr*> SymbolSet;
@@ -89,5 +90,7 @@ protected:
 	// Expression type
 	ExprType m_exprType;
 };
+
+SymbolExpr* getRootSymbol(const Expression*) ;
 
 #endif // #ifndef EXPRESSIONS_H_ 

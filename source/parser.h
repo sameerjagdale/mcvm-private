@@ -102,6 +102,8 @@ private:
 	// Method to parse the XML code of a parameterized expression
 	static Expression* parseParamExpr(const XML::Element* pElement);
 
+        static Expression* parseDotExpr(const XML::Element* pElement);
+            
 	// Method to parse the XML code of a cell indexing expression
 	static Expression* parseCellIndexExpr(const XML::Element* pElement);
 

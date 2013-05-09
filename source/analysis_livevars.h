@@ -32,7 +32,7 @@
 
 // Live variable map type definition
 //typedef std::map<const IIRNode*, Expression::SymbolSet> LiveVarMap;
-typedef __gnu_cxx::hash_map<const IIRNode*, Expression::SymbolSet, IntHashFunc<const IIRNode*>, __gnu_cxx::equal_to<const IIRNode*> > LiveVarMap;
+typedef std::unordered_map<const IIRNode*, Expression::SymbolSet> LiveVarMap;
 
 /***************************************************************
 * Class   : LiveVarInfo

@@ -18,6 +18,8 @@
 
 // Header files
 #include "expressions.h"
+#include "paramexpr.h"
+#include "dotexpr.h"
 
 /***************************************************************
 * Function: Expression::getSymbolUses()
@@ -54,3 +56,17 @@ Expression::SymbolSet Expression::getSymbolUses() const
 	// Return the set of symbols
 	return symbols;
 }
+
+SymbolExpr* getRootSymbol (const Expression* expr) {
+    switch (expr->getExprType()) {
+        case Expression::PARAM:
+            return getRootSymbol(((ParamExpr*)expr)->getSymExpr()) ;
+        case Expression::SYMBOL:
+            return (SymbolExpr*)expr;
+        case Expression::DOT:
+            return getRootSymbol(((DotExpr*)expr)->getExpr()) ;
+        default:
+            return nullptr;
+    }
+}
+

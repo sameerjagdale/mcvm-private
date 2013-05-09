@@ -1,5 +1,7 @@
 #include <analysis/typeinference/analysisfw_typeinference.h>
 
+#include "dotexpr.h"
+
 namespace mcvm { namespace analysis { namespace ti {
 
     Info merge(
@@ -27,18 +29,29 @@ namespace mcvm { namespace analysis { namespace ti {
     {
         Lattice l (Lattice::mclass::FNHANDLE) ;
         
-        auto u = (new Lattice (Lattice::mclass::LAMBDA)) ;
-        u->lambda_ = expr ;
+        l.fnhandle_ = std::unique_ptr<Lattice>
+            (new Lattice(Lattice::mclass::LAMBDA));
+        
+        l.fnhandle_->lambda_ = expr ;
         
         for (auto& var:in) {
-            u->env_ [var.first ] = & var.second;
+            l.fnhandle_->env_ [var.first ] = & var.second;
         }
-
-        l.fnhandle_ = u ;
 
         return {l} ;
     }
     
+    ExprInfo fpconst(
+            const FPConstExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in)
+    {
+        Lattice lattice (Lattice::mclass::DOUBLE) ;
+        lattice.size_ = {1,1} ;
+        return {lattice} ;
+    }
+
     ExprInfo intconst(
             const IntConstExpr* expr,
             const Analyzer<Info,ExprInfo>& analyzer,
@@ -67,6 +80,8 @@ namespace mcvm { namespace analysis { namespace ti {
 
         switch (v.type_) {
             case Lattice::mclass::LIBFUNCTION:
+                std::cout << "lib" << std::endl ;
+                assert(false) ;
             case Lattice::mclass::PROGFUNCTION:
                 {
                     auto function = v.function_ ;
@@ -168,9 +183,15 @@ namespace mcvm { namespace analysis { namespace ti {
             throw TypeError() ;
         }
         Function* function = (Function*)pObject;
-        Lattice function_typeinfo (Lattice::mclass::PROGFUNCTION) ;
-        function_typeinfo.function_ = function ;
-        return {function_typeinfo} ;
+        Lattice l ;
+        if (function->isProgFunction() ) {
+            l = Lattice(Lattice::mclass::PROGFUNCTION);
+            l.function_ = function ;
+        } else {
+            l = Lattice(Lattice::mclass::LIBFUNCTION) ;
+        }
+        l.function_ = function ;
+        return {l} ;
     }
     
     ExprInfo matrixexpr(
@@ -214,29 +235,18 @@ namespace mcvm { namespace analysis { namespace ti {
 		case BinaryOpExpr::MINUS:
 		case BinaryOpExpr::ARRAY_MULT:
 		case BinaryOpExpr::ARRAY_POWER:
-			return {} ; //arrayArithOpTypeMapping<true>(argTypes);
+			return typemap::array_arithm_op(l,r);
 		case BinaryOpExpr::ARRAY_DIV:
 		case BinaryOpExpr::ARRAY_LEFT_DIV:
 			return {} ; //arrayArithOpTypeMapping<false>(argTypes);
 		case BinaryOpExpr::MULT:
 			return typemap::mult_op(l,r);
 		case BinaryOpExpr::DIV:
-			return {} ; //divOpTypeMapping(argTypes);
+			return typemap::div_op(l,r);
 		case BinaryOpExpr::LEFT_DIV:
-		{
-			// Perform type inference for the division operation
 			return {} ; //leftDivOpTypeMapping(argTypes);
-		}
-		break;	
-			
-		// Exponentiation operation	
 		case BinaryOpExpr::POWER:
-		{
-			// Perform type inference for the power operation
-			return {} ; //powerOpTypeMapping(argTypes);
-		}
-		break;
-
+			return typemap::power_op(l,r) ;
 		// Logical arithmetic operation
 		case BinaryOpExpr::EQUAL:
 		case BinaryOpExpr::NOT_EQUAL:
@@ -271,6 +281,23 @@ namespace mcvm { namespace analysis { namespace ti {
         return {res} ;
     }
     
+    Lattice recursive_assign (const Expression* expr, const Lattice& l) {
+        switch (expr->getExprType()) {
+            case Expression::SYMBOL:
+                return l ;
+            case Expression::DOT:
+                {
+                auto dot = (DotExpr*)expr ;
+                Lattice lattice (Lattice::mclass::STRUCTARRAY);
+                lattice.fields_ [ dot->getField() ] = 
+                    std::unique_ptr<Lattice>( new Lattice(l)) ;
+                return recursive_assign(dot->getExpr(), lattice) ;
+                }
+            default:
+                return {};
+        }
+    }
+    
     Info assignstmt(
             const AssignStmt* assign,
             const Analyzer<FlowInfo,ExprInfo>& analyzer,
@@ -299,7 +326,8 @@ namespace mcvm { namespace analysis { namespace ti {
             for (;
                     it2 != lefts.end() ;
                     ++it1 , ++it2 ) {
-                out[ (SymbolExpr*) *it2] = *it1 ;
+                auto info = recursive_assign (*it2, *it1) ;
+                out [ getRootSymbol (*it2) ] = info ;
             }
 
             return out;
@@ -339,16 +367,55 @@ namespace mcvm { namespace analysis { namespace ti {
         return res;
     }
 
+    ExprInfo cellindex(
+            const CellIndexExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in){
+        return {} ;
+    }
+    
+    ExprInfo cellarray(
+            const CellArrayExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in) {
+        auto rows = expr->getRows() ;
+        Lattice l (Lattice::mclass::CELLARRAY) ;
+        /*
+        for (auto& row : rows) {
+            auto r = row - rows.begin() ;
+            std::vector<std::unique_ptr<Lattice>> vect ;
+            for (auto& cell : row) {
+                auto c = cell - row.begin() ;
+                auto exprvect = analyzer.expression_(
+                        cell,
+                        analyzer,
+                        context,
+                        in) ;
+                auto l = exprvect.front() ;
+                auto ptr = std::unique_ptr<Lattice>(new Lattice(l)) ;
+                vect.push_back(ptr) ;
+            }
+            l.cells_.push_back(vect) ;
+        }
+        */
+        return {l} ;
+    }
     
     Analyzer<Info,ExprInfo> get_analyzer() {
         Analyzer<Info,ExprInfo> ret ;
         ret.sequencestmt_ = &sequencestmt<Info,ExprInfo> ;
+        ret.loopstmt_ = &loopstmt<Info,ExprInfo> ;
         ret.expression_ = &expression<Info,ExprInfo> ;
         
+        ret.fpconst_ = &ti::fpconst ;
         ret.assignstmt_ = &ti::assignstmt ;
         ret.lambda_ = &ti::lambda ;
         ret.intconst_ = &ti::intconst ;
         ret.paramexpr_ = &ti::paramexpr ;
+        ret.cellindex_ = &ti::cellindex ;
+        ret.cellarray_ = &ti::cellarray ;
         ret.symbol_function_ = &ti::symbol_function ;
         ret.matrix_ = &ti::matrixexpr ;
         ret.str_= &ti::str;

@@ -50,7 +50,7 @@ class ProgFunction;
 
 // Variable type map type definition
 //typedef std::map<const SymbolExpr*, TypeSet> VarTypeMap;
-typedef __gnu_cxx::hash_map<const SymbolExpr*, TypeSet, IntHashFunc<const SymbolExpr*>, __gnu_cxx::equal_to<const SymbolExpr*> > VarTypeMap;
+typedef std::unordered_map<const SymbolExpr*, TypeSet> VarTypeMap;
 //typedef std::map<const SymbolExpr*, TypeSet, std::less<const SymbolExpr*>, PoolAlloc<std::pair<const SymbolExpr*, TypeSet> > > VarTypeMap;
 
 // Type map vector type definition
@@ -58,12 +58,12 @@ typedef std::vector<VarTypeMap> TypeMapVector;
 
 // Type information map type definition
 //typedef std::map<const IIRNode*, VarTypeMap> TypeInfoMap;
-typedef __gnu_cxx::hash_map<const IIRNode*, VarTypeMap, IntHashFunc<const IIRNode*>, __gnu_cxx::equal_to<const IIRNode*> > TypeInfoMap;
+typedef std::unordered_map<const IIRNode*, VarTypeMap> TypeInfoMap;
 //typedef std::map<const IIRNode*, VarTypeMap, std::less<const IIRNode*>, PoolAlloc<std::pair<const IIRNode*, VarTypeMap> > > TypeInfoMap;
 
 // Expression type map type definition
 //typedef std::map<const Expression*, TypeSetString> ExprTypeMap;
-typedef __gnu_cxx::hash_map<const Expression*, TypeSetString, IntHashFunc<const Expression*>, __gnu_cxx::equal_to<const Expression*> > ExprTypeMap;
+typedef std::unordered_map<const Expression*, TypeSetString> ExprTypeMap;
 
 /***************************************************************
 * Class   : TypeInferInfo

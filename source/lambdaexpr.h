@@ -36,7 +36,7 @@ class LambdaExpr : public Expression
 public:
 	
 	// Parameter vector type definition
-	typedef std::vector<SymbolExpr*, gc_allocator<SymbolExpr*> > ParamVector;
+	typedef std::vector<SymbolExpr*> ParamVector;
 	
 	// Constructor
 	LambdaExpr(const ParamVector& inParams, Expression* pBodyExpr)

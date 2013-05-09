@@ -48,6 +48,8 @@
 #include "transform_logic.h"
 #include "transform_split.h"
 
+#include <analysis/typeinference/analysisfw_typeinference.h>
+
 // Config variable to enable/disable the JIT compiler
 ConfigVar JITCompiler::s_jitEnableVar("jit_enable", ConfigVar::BOOL, "false");
 
@@ -915,6 +917,17 @@ void JITCompiler::compileFunction(ProgFunction* pFunction, const TypeSetString& 
 	compVersion.pBoundsCheckInfo = (const BoundsCheckInfo*)AnalysisManager::requestInfo(&computeBoundsCheck,
 		pFunction, compFunction.pFuncBody, compVersion.inArgTypes);
 	
+
+        // FIXME
+        auto analyzer = mcvm::analysis::ti::get_analyzer() ;
+        
+        //Construt the input args
+        mcvm::analysis::ti::FlowInfo i ;
+        mcvm::analysis::AnalyzerContext<mcvm::analysis::ti::FlowInfo> context ;
+        auto result = mcvm::analysis::analyze(analyzer,context,pFunction,i) ;
+        std::cout << result.data_ << std::endl;
+        exit(0) ;
+        
 	if (s_jitCopyEnableVar)
 	{
 		compVersion.pArrayCopyInfo = (const ArrayCopyAnalysisInfo*)AnalysisManager::requestInfo(

@@ -22,7 +22,6 @@
 #define JITCOMPILER_H_
 
 // Header files
-#include <ext/hash_map>
 #include <vector>
 #include <map>
 #include <llvm/LLVMContext.h>
@@ -189,7 +188,7 @@ private:
 	typedef std::vector<Value> ValueVector;
 	
 	// Variable map type definition
-	typedef __gnu_cxx::hash_map<SymbolExpr*, Value, IntHashFunc<SymbolExpr*>, __gnu_cxx::equal_to<SymbolExpr*> > VariableMap;
+	typedef std::unordered_map<SymbolExpr*, Value> VariableMap;
 	
 	// Branching point type definition
 	typedef std::pair<llvm::BasicBlock*, VariableMap> BranchPoint;

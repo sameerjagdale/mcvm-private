@@ -122,7 +122,7 @@ class ProgFunction : public Function
 public:
 	
 	// Parameter vector type definition
-	typedef std::vector<SymbolExpr*, gc_allocator<SymbolExpr*> > ParamVector; 
+	typedef std::vector<SymbolExpr*> ParamVector; 
 	
 	// Function vector type definition
 	typedef std::vector<ProgFunction*, gc_allocator<ProgFunction*> > FuncVector;

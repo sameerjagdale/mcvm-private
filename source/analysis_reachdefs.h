@@ -42,11 +42,11 @@ typedef std::set<const IIRNode*, std::less<const IIRNode*>, PoolAlloc<std::pair<
 
 // Variable definition map type definition
 //typedef std::map<const SymbolExpr*, VarDefSet> VarDefMap;
-typedef __gnu_cxx::hash_map<const SymbolExpr*, VarDefSet, IntHashFunc<const SymbolExpr*>, __gnu_cxx::equal_to<const SymbolExpr*> > VarDefMap;
+typedef std::unordered_map<const SymbolExpr*, VarDefSet> VarDefMap;
 
 // Reaching definitions map type definition
 //typedef std::map<const IIRNode*, VarDefMap> ReachDefMap;
-typedef __gnu_cxx::hash_map<const IIRNode*, VarDefMap, IntHashFunc<const IIRNode*>, __gnu_cxx::equal_to<const IIRNode*> > ReachDefMap;
+typedef std::unordered_map<const IIRNode*, VarDefMap> ReachDefMap;
 
 /***************************************************************
 * Class   : ReachDefInfo

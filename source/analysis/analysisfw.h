@@ -16,6 +16,7 @@
 #include "interpreter.h"
 
 class ParamExpr;
+class DotExpr;
 
 namespace mcvm { namespace analysis {
 
@@ -61,6 +62,7 @@ namespace mcvm { namespace analysis {
             ExpressionFn<CellArrayExpr> cellarray_;
             ExpressionFn<FPConstExpr> fpconst_;
             ExpressionFn<ParamExpr> paramexpr_;
+            ExpressionFn<DotExpr> dotexpr_ ;
             ExpressionFn<BinaryOpExpr> binop_;
             ExpressionFn<UnaryOpExpr> unaryop_;
             ExpressionFn<MatrixExpr> matrix_;
@@ -192,6 +194,46 @@ namespace mcvm { namespace analysis {
 
 
     template <typename FlowInfo, typename ExprInfo>
+        FlowInfo loopstmt(
+                const LoopStmt* loop,
+                const Analyzer<FlowInfo,ExprInfo>& analyzer,
+                AnalyzerContext<FlowInfo>& context,
+                const FlowInfo& in
+                ){
+            // Handle the init seq
+            auto initseq = loop->getInitSeq() ;
+            auto after_init = analyzer.sequencestmt_(
+                    initseq,
+                    analyzer,
+                    context,
+                    in) ;
+            
+            //
+            auto indexvar = loop->getIndexVar() ;
+            auto testvar = loop->getTestVar() ;
+            
+
+            // Test sequence
+            auto testseq = loop->getTestSeq() ;
+            auto after_test = analyzer.sequencestmt_(
+                    testseq,
+                    analyzer,
+                    context,
+                    after_init) ;
+            
+            // Run on the body loop
+            auto body = loop->getBodySeq() ;
+            auto after_body = analyzer.sequencestmt_(
+                    body,
+                    analyzer,
+                    context,
+                    after_test) ;
+            
+            // Incrementation seq
+            auto incrseq = loop->getIncrSeq() ;
+        }
+    
+    template <typename FlowInfo, typename ExprInfo>
         FlowInfo sequencestmt(
                 const StmtSequence* seq,
                 const Analyzer<FlowInfo,ExprInfo>& analyzer,
@@ -309,6 +351,8 @@ namespace mcvm { namespace analysis {
                     return analyzer.intconst_((IntConstExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::PARAM:
                     return analyzer.paramexpr_( (ParamExpr*)expr, analyzer, context, in) ;
+                case Expression::ExprType::DOT:
+                    return analyzer.dotexpr_( (DotExpr*)expr, analyzer, context, in) ;
                 case Expression::ExprType::SYMBOL:
                     {
                         auto s = (SymbolExpr*)expr;

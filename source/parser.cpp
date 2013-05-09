@@ -30,6 +30,7 @@
 #include "assignstmt.h"
 #include "exprstmt.h"
 #include "paramexpr.h"
+#include "dotexpr.h"
 #include "unaryopexpr.h"
 #include "binaryopexpr.h"
 #include "symbolexpr.h"
@@ -46,6 +47,21 @@
 #include "client.h"
 
 static unsigned maxLoopDepth = 0;
+
+Expression* CodeParser::parseDotExpr(const XML::Element* pElement)
+{
+	if (pElement->getChildElement(1)->getName() != "Name") {
+		throw XML::ParseError("Expected field name", pElement->getTextPos());
+	}
+		
+	std::string field = pElement->getChildElement(1)->getStringAttrib("nameId") ;
+
+	// Parse the expression
+	Expression* pLeftExpr = parseExpression(pElement->getChildElement(0));
+
+	// Create and return the new parameterized expression
+	return new DotExpr(pLeftExpr,field);
+}
 
 /***************************************************************
 * Function: CodeParser::parseSrcFile()
@@ -586,7 +602,11 @@ Expression* CodeParser::parseExpression(const XML::Element* pElement)
 		// Parse the parameterized expression
 		return parseParamExpr(pElement);
 	}
-
+	else if (pElement->getName() == "DotExpr")
+	{
+		// Parse the cell indexing expression
+		return parseDotExpr(pElement);
+	}
 	// If this is a cell-indexing expression
 	else if (pElement->getName() == "CellIndexExpr")
 	{

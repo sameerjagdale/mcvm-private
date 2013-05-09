@@ -22,7 +22,7 @@
 
 // Header files
 #include <string>
-#include <ext/hash_map>
+#include <unordered_map>
 #include "expressions.h"
 #include "utility.h"
 
@@ -58,7 +58,7 @@ private:
 	SymbolExpr(const std::string& name);
 	
 	// Symbol name map type definition
-	typedef __gnu_cxx::hash_map<std::string, SymbolExpr*, StrHashFunc, __gnu_cxx::equal_to<std::string>, gc_allocator<SymbolExpr*> > NameMap;
+	typedef std::unordered_map<std::string, SymbolExpr*> NameMap;
 	
 	// Name string for this symbol
 	std::string m_symName;

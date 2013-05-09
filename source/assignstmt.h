@@ -37,7 +37,7 @@ class AssignStmt : public Statement
 public:
 	
 	// Expression vector type definition
-	typedef std::vector<Expression*, gc_allocator<Expression*> > ExprVector;
+	typedef std::vector<Expression*> ExprVector;
 	
 	// Full constructor
 	AssignStmt(const ExprVector& leftExprs, Expression* rightExpr, bool suppressOut = true)

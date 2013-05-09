@@ -232,6 +232,9 @@ bool splitExpression(Expression* pExpr, StmtSequence::StmtVector& stmtVector, Ex
 	if (pTopExpr->getExprType() == Expression::LAMBDA)
 		return false;
 	
+	if (pTopExpr->getExprType() == Expression::DOT)
+		return false;
+        
 	// Get the list of sub-expressions for this expression
 	Expression::ExprVector subExprs = pTopExpr->getSubExprs();
 	

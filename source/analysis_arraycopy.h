@@ -19,6 +19,7 @@
 #ifndef ARRAY_COPY_ANALYSIS_H_
 #define ARRAY_COPY_ANALYSIS_H_
 
+#include <algorithm>
 #include <sstream>
 #include <iostream>
 #include <map>

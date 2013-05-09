@@ -20,6 +20,7 @@
 #include "assignstmt.h"
 #include "paramexpr.h"
 #include "cellindexexpr.h"
+#include "dotexpr.h"
 
 /***************************************************************
 * Function: AssignStmt::copy()
@@ -149,6 +150,19 @@ Expression::SymbolSet AssignStmt::getSymbolUses() const
 			}	
 			break;
 			
+			case Expression::ExprType::DOT:
+			{
+				// Get a typed pointer to the expression
+				DotExpr* pLeftExpr = (DotExpr*)pExpr;
+				
+				// Get the symbols used by this expression
+				Expression::SymbolSet exprSymbols = pLeftExpr->getSymbolUses();
+				
+				// Add those symbols to the main set
+				symbols.insert(exprSymbols.begin(), exprSymbols.end());
+			}	
+                        
+			break;
 			// Invalid expression type
 			default: assert (false);
 		}
@@ -167,38 +181,11 @@ Revisions and bug fixes:
 */
 Expression::SymbolSet AssignStmt::getSymbolDefs() const
 {
-	// Create a set to store the defined symbols
 	Expression::SymbolSet symbols;
-	
-	// For each left-expression
-	for (ExprVector::const_iterator itr = m_leftExprs.begin(); itr != m_leftExprs.end(); ++itr)
+	for (auto itr = m_leftExprs.begin(); itr != m_leftExprs.end(); ++itr)
 	{
-		// Get a pointer to this expression
-		Expression* pExpr = *itr;
-		
-		// Switch on the expression type
-		switch (pExpr->getExprType())
-		{
-			// Symbol expression
-			case Expression::SYMBOL:
-			symbols.insert((SymbolExpr*)pExpr);
-			break;
-			
-			// Parameterized expression
-			case Expression::PARAM:
-			symbols.insert(((ParamExpr*)pExpr)->getSymExpr());
-			break;
-
-			// Cell indexing expression
-			case Expression::CELL_INDEX:
-			symbols.insert(((CellIndexExpr*)pExpr)->getSymExpr());
-			break;
-			
-			// Invalid expression type
-			default: assert (false);
-		}
+            auto pExpr = *itr;
+            symbols.insert ( getRootSymbol(pExpr) ) ;
 	}
-	
-	// Return the set of symbols
 	return symbols;
 }

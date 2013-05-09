@@ -17,6 +17,7 @@
 // =========================================================================== //
 
 #include "analysis_copyplacement.h"
+#include <iterator>
 
 CopyInfo ArrayCopyPlacement::NullEntry(0, Expression::SymbolSet());
 

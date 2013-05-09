@@ -18,6 +18,8 @@ namespace mcvm { namespace analysis { namespace ti {
     using ExprInfo = std::vector<Lattice> ;
 
     class TypeError : public std::exception {};
+    
+    Lattice recursive_assign (const Expression*, const Lattice&) ;
 
     FlowInfo construct_function_environment(
             const Analyzer<Info,ExprInfo>& analyzer,
@@ -37,6 +39,18 @@ namespace mcvm { namespace analysis { namespace ti {
             AnalyzerContext<Info>& context,
             const Info& in);
 
+    ExprInfo cellindex(
+            const CellIndexExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in);
+    
+    ExprInfo cellarray(
+            const CellArrayExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in);
+    
     ExprInfo lambda(
             const LambdaExpr* expr,
             const Analyzer<Info,ExprInfo>& analyzer,

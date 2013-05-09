@@ -34,21 +34,21 @@ struct Lattice
    
     mclass type_ ;
     std::vector<size_t> size_ ;
-    //std::vector<std::unique_ptr<Lattice>> cells_ ;
-    //std::unordered_map<std::string,std::unique_ptr<Lattice>> fields_ ;
-    const Function* function_ ;
-    bool integer_only_ ;
+    std::vector<std::unique_ptr<Lattice>> cells_ ;
+    std::unordered_map<std::string,std::unique_ptr<Lattice>> fields_ ;
+    const Function* function_ = nullptr ;
+    bool integer_only_ = false ;
     
 
-    //Lambda
-    const LambdaExpr* lambda_ ;
-    
-    Lattice* fnhandle_ ;
+    const LambdaExpr* lambda_ = nullptr ;
+    std::unique_ptr<Lattice> fnhandle_ = nullptr ;
     std::unordered_map<SymbolExpr*,const Lattice*> env_ ;
     
     Lattice(mclass) ;
     Lattice() = default ;
-    Lattice(const Lattice&) = default ;
+    Lattice(const Lattice&) ;
+    Lattice& operator= (const Lattice& other) ;
+    Lattice(Lattice&&) = default ;
     
     std::string toString() const;
     bool operator==(const Lattice&) const;
@@ -58,6 +58,9 @@ struct Lattice
 namespace typemap {
   std::vector<Lattice> logical_op (const Lattice&, const Lattice&) ;
   std::vector<Lattice> mult_op (const Lattice&, const Lattice&) ;
+  std::vector<Lattice> div_op (const Lattice&, const Lattice&) ;
+  std::vector<Lattice> array_arithm_op (const Lattice&, const Lattice&) ;
+  std::vector<Lattice> power_op (const Lattice&, const Lattice&) ;
 }
 
 }}}
