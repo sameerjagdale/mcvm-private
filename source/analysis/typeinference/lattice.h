@@ -47,13 +47,16 @@ struct Lattice
     Lattice(mclass) ;
     Lattice() = default ;
     Lattice(const Lattice&) ;
-    Lattice& operator= (const Lattice& other) ;
+    Lattice& operator= (const Lattice&) ;
     Lattice(Lattice&&) = default ;
     
     std::string toString() const;
     bool operator==(const Lattice&) const;
+    void merge (const Lattice& old) ;
 
 };
+
+bool is_composite(const Lattice&) ;
 
 namespace typemap {
   std::vector<Lattice> logical_op (const Lattice&, const Lattice&) ;

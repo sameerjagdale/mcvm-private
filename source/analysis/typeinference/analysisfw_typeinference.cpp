@@ -285,6 +285,8 @@ namespace mcvm { namespace analysis { namespace ti {
         switch (expr->getExprType()) {
             case Expression::SYMBOL:
                 return l ;
+            case Expression::PARAM:
+                return {} ;
             case Expression::DOT:
                 {
                 auto dot = (DotExpr*)expr ;
@@ -327,7 +329,18 @@ namespace mcvm { namespace analysis { namespace ti {
                     it2 != lefts.end() ;
                     ++it1 , ++it2 ) {
                 auto info = recursive_assign (*it2, *it1) ;
-                out [ getRootSymbol (*it2) ] = info ;
+                auto root = getRootSymbol (*it2) ;
+                
+                if ( (*it2)->getExprType() != Expression::SYMBOL) {
+                   auto itr = in.find (root) ;
+                   if (itr != std::end(in)) {
+                       info.merge(itr->second) ;
+                   }
+                }
+
+                std::cout << "ASSIGN" << info.toString() << " FIN ASSIGN" << std::endl ;
+                out [root] = info ;
+                std::cout << "AFTER" << out[ getRootSymbol(*it2) ].toString() << " FIN AFTER" << std::endl ;
             }
 
             return out;

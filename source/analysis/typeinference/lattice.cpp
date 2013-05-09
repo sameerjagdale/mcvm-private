@@ -34,6 +34,7 @@ namespace mcvm { namespace analysis { namespace ti {
       this->lambda_ = l.lambda_ ;
       if (l.fnhandle_)
           this->fnhandle_ = std::unique_ptr<Lattice>(new Lattice(*l.fnhandle_)) ;
+      this->fields_.clear() ;
       for (auto& f : l.fields_)
           this->fields_ [ f.first ] = std::unique_ptr<Lattice>(new Lattice(*f.second)) ;
       return *this ;
@@ -84,11 +85,89 @@ namespace mcvm { namespace analysis { namespace ti {
     return res ;
   }
   
+void Lattice::merge (const Lattice& old) {
+    /*
+    PRDEBUG("Merging :"
+            "\n%s\n"
+            "Into:"
+            "\n%s\n",
+            typeinfo.toString().c_str(),
+            this->toString().c_str());
+            */
+
+
+
+    // Merge the size first
+    if (!old.size_.empty()) {
+        auto typeinfo_size = old.size_ ;
+        int current_dim_number = size_.size() ;
+
+        int id = 0;
+        for (auto it = std::begin(typeinfo_size) ,
+                end = std::end(typeinfo_size) ;
+                it != end ;
+                ++it,++id) 
+        {
+            if (id > current_dim_number) {
+                // Take the merged value
+                size_.at(id) = typeinfo_size.at(id);
+            } else {
+                // Take the max
+            size_.at(id) = 
+                std::max(
+                        size_.at(id),
+                        typeinfo_size.at(id)
+                        );
+            }
+        }
+    } else {
+        size_.clear();
+    }
+
+    // If either ot them is not a structarray, don't do anything
+    if ( type_ != Lattice::mclass::STRUCTARRAY ||
+            old.type_ != Lattice::mclass::STRUCTARRAY ) {
+        return ;
+    }
+
+    // Then merge the fields
+    auto& fields = old.fields_ ;
+    for (auto it = std::begin(fields),
+            end = std::end(fields) ;
+            it != end ;
+            ++it)
+    {
+        auto field_exist = fields_.find (it->first) ;
+
+        if (field_exist == std::end(fields_)) {
+            auto insert_field = std::unique_ptr<Lattice>(
+                    new Lattice(*it->second)) ;
+            fields_ [it->first] = std::move(insert_field) ;
+        } else {
+            // Recursive merge of this field
+            auto& recursive_field = field_exist->second ;
+            const std::unique_ptr<Lattice>& recursive_merge = it->second ;
+            Lattice lat = *recursive_merge ;
+            recursive_field->merge(lat);
+        }
+    }
+}
   
   bool Lattice::operator == (const Lattice& a) const {
     return this->type_ == a.type_ ;
   }
   
+bool is_composite(const Lattice& l) {
+    switch (l.type_) {
+        case Lattice::mclass::STRUCTARRAY:
+        case Lattice::mclass::LOGICALARRAY:
+        case Lattice::mclass::DOUBLE:
+        return true;
+        default:
+            return false;
+    }
+}
+
   namespace typemap {
     std::vector<Lattice> logical_op (const Lattice&, const Lattice&) {
       Lattice ret ;
