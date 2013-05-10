@@ -26,12 +26,14 @@ namespace mcvm { namespace analysis { namespace ti {
           this->fnhandle_ = std::unique_ptr<Lattice>(new Lattice(*l.fnhandle_)) ;
       for (auto& f : l.fields_)
           this->fields_ [ f.first ] = std::unique_ptr<Lattice>(new Lattice(*f.second)) ;
+      this->size_ = l.size_ ;
   }
   
   // Copy assignment operator
   Lattice& Lattice::operator= (const Lattice & l) {
       this->type_ = l.type_ ;
       this->lambda_ = l.lambda_ ;
+      this->size_ = l.size_ ;
       if (l.fnhandle_)
           this->fnhandle_ = std::unique_ptr<Lattice>(new Lattice(*l.fnhandle_)) ;
       this->fields_.clear() ;

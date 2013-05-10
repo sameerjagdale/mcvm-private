@@ -315,13 +315,20 @@ namespace mcvm { namespace analysis { namespace ti {
             case Expression::SYMBOL:
                 return l ;
             case Expression::PARAM:
-                return {} ;
+                {
+                auto param = (ParamExpr*)expr ;
+                auto lattice = l ;
+                lattice.size_.push_back(45) ;
+                return lattice ;
+                }
             case Expression::DOT:
                 {
                 auto dot = (DotExpr*)expr ;
                 Lattice lattice (Lattice::mclass::STRUCTARRAY);
                 lattice.fields_ [ dot->getField() ] = 
                     std::unique_ptr<Lattice>( new Lattice(l)) ;
+                lattice.size_.push_back(1) ;
+                lattice.size_.push_back(1) ;
                 return recursive_assign(dot->getExpr(), lattice) ;
                 }
             default:
@@ -366,10 +373,7 @@ namespace mcvm { namespace analysis { namespace ti {
                        info.merge(itr->second) ;
                    }
                 }
-
-                std::cout << "ASSIGN" << info.toString() << " FIN ASSIGN" << std::endl ;
                 out [root] = info ;
-                std::cout << "AFTER" << out[ getRootSymbol(*it2) ].toString() << " FIN AFTER" << std::endl ;
             }
 
             return out;

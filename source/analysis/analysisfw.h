@@ -200,37 +200,49 @@ namespace mcvm { namespace analysis {
                 AnalyzerContext<FlowInfo>& context,
                 const FlowInfo& in
                 ){
-            // Handle the init seq
-            auto initseq = loop->getInitSeq() ;
-            auto after_init = analyzer.sequencestmt_(
-                    initseq,
-                    analyzer,
-                    context,
-                    in) ;
             
-            //
-            auto indexvar = loop->getIndexVar() ;
-            auto testvar = loop->getTestVar() ;
-            
+            auto current = in ;
+            for (;;) {
+                // Handle the init seq
+                auto initseq = loop->getInitSeq() ;
+                auto after_init = analyzer.sequencestmt_(
+                        initseq,
+                        analyzer,
+                        context,
+                        in) ;
 
-            // Test sequence
-            auto testseq = loop->getTestSeq() ;
-            auto after_test = analyzer.sequencestmt_(
-                    testseq,
-                    analyzer,
-                    context,
-                    after_init) ;
-            
-            // Run on the body loop
-            auto body = loop->getBodySeq() ;
-            auto after_body = analyzer.sequencestmt_(
-                    body,
-                    analyzer,
-                    context,
-                    after_test) ;
-            
-            // Incrementation seq
-            auto incrseq = loop->getIncrSeq() ;
+
+                // Test sequence
+                auto testseq = loop->getTestSeq() ;
+                auto after_test = analyzer.sequencestmt_(
+                        testseq,
+                        analyzer,
+                        context,
+                        after_init) ;
+
+                // Run on the body loop
+                auto body = loop->getBodySeq() ;
+                auto after_body = analyzer.sequencestmt_(
+                        body,
+                        analyzer,
+                        context,
+                        after_test) ;
+
+                // Incrementation seq
+                auto incrseq = loop->getIncrSeq() ;
+
+                auto after_incr = analyzer.sequencestmt_(
+                        incrseq,
+                        analyzer,
+                        context,
+                        after_body) ;
+
+                if (current == after_incr) {
+                    return after_incr ;
+                } else {
+                    current = after_incr ;
+                }
+            }
         }
     
     template <typename FlowInfo, typename ExprInfo>
