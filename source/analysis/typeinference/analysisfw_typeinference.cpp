@@ -93,12 +93,17 @@ namespace mcvm { namespace analysis { namespace ti {
         return {ret} ;
     }
     
+    ExprInfo libfunction(
+            const LibFunction* func) {
+        return {} ;
+    }
+    
     ExprInfo paramexpr(
             const ParamExpr* expr,
             const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
-            const Info& in)
-    {
+            const Info& in) {
+        
         auto leftexpr = expr->getSymExpr() ;
         auto left = analyzer.expression_(leftexpr,analyzer,context,in);
         auto v = * left.begin() ;
@@ -109,9 +114,10 @@ namespace mcvm { namespace analysis { namespace ti {
 
         switch (v.type_) {
             case Lattice::mclass::LIBFUNCTION:
-                std::cout << "lib" << std::endl ;
-                return {} ;
-                assert(false) ;
+                return analyzer.libfunction_(
+                        (const LibFunction*)v.function_ 
+                        );
+                
             case Lattice::mclass::PROGFUNCTION:
                 {
                     auto function = v.function_ ;
@@ -251,8 +257,16 @@ namespace mcvm { namespace analysis { namespace ti {
                 return {ret} ;
 	}
         
+        size_t nb_col = rows.begin()->size() ;
+        size_t nb_row = rows.size() ;
+        
+        ret.size_ = {nb_row,nb_col} ;
+        ret.integer_ = true ;
+        
 	for (auto rowItr = rows.begin(); rowItr != rows.end(); ++rowItr) {
 		auto& row = *rowItr;
+               
+                size_t colsize ;
                 for (auto colItr = row.begin(); colItr != row.end(); ++colItr) {
 			auto pExpr = *colItr;
 			auto typevec = analyzer.expression_(
@@ -263,17 +277,28 @@ namespace mcvm { namespace analysis { namespace ti {
                         if (typevec.size() != 1)
                             return {} ;
                         
+                        
                         auto type = typevec.front() ;
-                        if (rowItr == rows.begin() && colItr == row.begin()) {
-                            ret = type ;
+                        if (rowItr == rows.begin() 
+                                && colItr == row.begin()) {
+                            ret.type_ = type.type_ ;
                         } else {
                             if (ret.type_ != type.type_)
                                 return {} ;
                             
                             if (!type.integer_)
                                 ret.integer_ = false ;
+                            
                         }
                 }
+                /*
+                if (rowItr == rows.begin()) 
+                    colsize = row.size() ;
+                else
+                    if (colsize != row.size()) 
+                        ret.size_ = {} ;
+                        */
+                
         }
         return {ret} ;
     }
@@ -283,7 +308,23 @@ namespace mcvm { namespace analysis { namespace ti {
             const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in) {
-        return {} ;
+        
+	auto type = analyzer.expression_(
+		expr->getOperand(),
+                analyzer,
+                context,
+                in);
+	
+	switch (expr->getOperator())
+	{
+		case UnaryOpExpr::PLUS:
+		case UnaryOpExpr::MINUS:
+		case UnaryOpExpr::NOT:
+			return type;
+		case UnaryOpExpr::TRANSP:
+		case UnaryOpExpr::ARRAY_TRANSP:
+			return {};
+	}
     }
 
     ExprInfo binop(
@@ -402,13 +443,13 @@ namespace mcvm { namespace analysis { namespace ti {
             auto rights = analyzer.expression_ (assign->getRightExpr(),analyzer,context,in) ;
             auto lefts = assign->getLeftExprs() ;
 
+
             if (rights.size() < lefts.size() ) {
                 std::cout << "Not enough returned values" << rights.size() << std::endl << lefts.size() << std::endl ;
                 for (auto& l : lefts) {
                     out [ getRootSymbol(l) ] = Lattice (Lattice::mclass::TOP) ;
                 }
                 return out ;
-                //throw std::exception() ;
             }
 
             auto it1 =  rights.begin() ;
@@ -421,7 +462,20 @@ namespace mcvm { namespace analysis { namespace ti {
             for (;
                     it2 != lefts.end() ;
                     ++it1 , ++it2 ) {
-                auto info = recursive_assign (*it2, *it1) ;
+
+                Lattice info ;
+                
+                // Apply when its a function call without parenthesis
+                /*
+                if ( assign->getRightExpr()->getExprType() == Expression::SYMBOL ) {
+                        if (it1->type_ == Lattice::mclass::PROGFUNCTION) {
+                        } else if (it1->type_ == Lattice::mclass::LIBFUNCTION ) {
+                            info = analyzer.libfunction_((LibFunction*)it1->function_) ;
+                        }
+                }
+                */
+            
+                info = recursive_assign (*it2, *it1) ;
                 auto root = getRootSymbol (*it2) ;
                 
                 if ( (*it2)->getExprType() != Expression::SYMBOL) {
@@ -525,6 +579,7 @@ namespace mcvm { namespace analysis { namespace ti {
         ret.str_= &ti::str;
         ret.binop_ =  &ti::binop ;
         ret.unaryop_ =  &ti::unaryop ;
+        ret.libfunction_ =  &ti::libfunction ;
         ret.merge_ = &ti::merge ;
         return ret ;
     }

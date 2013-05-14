@@ -71,6 +71,11 @@ namespace mcvm { namespace analysis {
             ExpressionFn<EndExpr> end_;
             ExpressionFn<RangeExpr> range_;
 
+            std::function<ExprInfo(
+                    const LibFunction*
+                    )> libfunction_ ;
+            
+
             template <typename Stmt>
                 using TransferFn = std::function<FlowInfo(
                         const Stmt*,

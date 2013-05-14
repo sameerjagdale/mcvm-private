@@ -24,11 +24,11 @@ namespace mcvm { namespace analysis { namespace ti {
       this->lambda_ = l.lambda_ ;
       this->function_ = l.function_ ;
       this->integer_ = l.integer_ ;
+      this->size_ = l.size_ ;
       if (l.fnhandle_)
           this->fnhandle_ = std::unique_ptr<Lattice>(new Lattice(*l.fnhandle_)) ;
       for (auto& f : l.fields_)
           this->fields_ [ f.first ] = std::unique_ptr<Lattice>(new Lattice(*f.second)) ;
-      this->size_ = l.size_ ;
   }
   
   // Copy assignment operator
@@ -59,6 +59,7 @@ namespace mcvm { namespace analysis { namespace ti {
 	res += "double";
         if (integer_)
             res += " (integer)" ;
+        res += mcvm::analysis::ti::toString(size_) ; 
 	break;
       case mclass::CHARARRAY:
 	res += "string";
