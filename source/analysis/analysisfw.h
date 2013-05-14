@@ -329,6 +329,18 @@ namespace mcvm { namespace analysis {
             return current ;
         }
 
+    /*
+    template <typename FlowInfo, typename ExprInfo>
+    ExprInfo range (
+            const Expression* expr,
+            const Analyzer<FlowInfo,ExprInfo>& analyzer,
+            AnalyzerContext<FlowInfo>& context,
+            const FlowInfo& in)
+    {
+        std::cout << "GENERIC" << std::endl ;
+    }
+    */
+
     template <typename FlowInfo, typename ExprInfo>
         ExprInfo expression(
                 const Expression* expr,
@@ -348,6 +360,7 @@ namespace mcvm { namespace analysis {
                 case Expression::ExprType::END:
                     return analyzer.end_((EndExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::RANGE:
+                    //return range<FlowInfo,ExprInfo> ((RangeExpr*)expr,analyzer,context,in ) ;
                     return analyzer.range_((RangeExpr*)expr,analyzer,context,in ) ;
                 case Expression::ExprType::STR_CONST:
                     return analyzer.str_((StrConstExpr*)expr,analyzer,context,in ) ;

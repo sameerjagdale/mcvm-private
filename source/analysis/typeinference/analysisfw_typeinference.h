@@ -11,7 +11,7 @@ class DotExpr;
 class ParamExpr;
 class MatrixExpr;
 
-namespace mcvm { namespace analysis { namespace ti {
+namespace mcvm { namespace analysis {  namespace ti {
 
     using FlowInfo = std::unordered_map<SymbolExpr*,Lattice> ;
     using Info = FlowInfo ;
@@ -21,6 +21,7 @@ namespace mcvm { namespace analysis { namespace ti {
     
     Lattice recursive_assign (const Expression*, const Lattice&) ;
 
+    
     FlowInfo construct_function_environment(
             const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,

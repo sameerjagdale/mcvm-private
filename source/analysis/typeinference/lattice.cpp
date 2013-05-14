@@ -22,6 +22,8 @@ namespace mcvm { namespace analysis { namespace ti {
   Lattice::Lattice(const Lattice& l) {
       this->type_ = l.type_ ;
       this->lambda_ = l.lambda_ ;
+      this->function_ = l.function_ ;
+      this->integer_ = l.integer_ ;
       if (l.fnhandle_)
           this->fnhandle_ = std::unique_ptr<Lattice>(new Lattice(*l.fnhandle_)) ;
       for (auto& f : l.fields_)
@@ -33,6 +35,8 @@ namespace mcvm { namespace analysis { namespace ti {
   Lattice& Lattice::operator= (const Lattice & l) {
       this->type_ = l.type_ ;
       this->lambda_ = l.lambda_ ;
+      this->function_ = l.function_ ;
+      this->integer_ = l.integer_ ;
       this->size_ = l.size_ ;
       if (l.fnhandle_)
           this->fnhandle_ = std::unique_ptr<Lattice>(new Lattice(*l.fnhandle_)) ;
@@ -53,6 +57,8 @@ namespace mcvm { namespace analysis { namespace ti {
 	break;
       case mclass::DOUBLE:
 	res += "double";
+        if (integer_)
+            res += " (integer)" ;
 	break;
       case mclass::CHARARRAY:
 	res += "string";
@@ -66,6 +72,12 @@ namespace mcvm { namespace analysis { namespace ti {
 	break;
       case mclass::LAMBDA:
 	res += "lambda";
+	break;
+      case mclass::PROGFUNCTION:
+	res += "progfunction";
+	break;
+      case mclass::LIBFUNCTION:
+	res += "libfunction";
 	break;
       case mclass::STRUCTARRAY:
 	res += "struct of size " ;
@@ -156,7 +168,10 @@ void Lattice::merge (const Lattice& old) {
 }
   
   bool Lattice::operator == (const Lattice& a) const {
-    return this->type_ == a.type_ ;
+    return 
+        this->type_ == a.type_ &&
+        this->integer_ == a.integer_ && 
+        this->size_ == a.size_ ;
   }
   
 bool is_composite(const Lattice& l) {

@@ -59,7 +59,7 @@ namespace mcvm { namespace analysis { namespace ti {
             const Info& in)
     {
         Lattice lattice (Lattice::mclass::DOUBLE) ;
-        lattice.integer_only_ = true ;
+        lattice.integer_ = true ;
         lattice.size_ = {1,1} ;
         return {lattice} ;
     }
@@ -110,17 +110,27 @@ namespace mcvm { namespace analysis { namespace ti {
         switch (v.type_) {
             case Lattice::mclass::LIBFUNCTION:
                 std::cout << "lib" << std::endl ;
+                return {} ;
                 assert(false) ;
             case Lattice::mclass::PROGFUNCTION:
                 {
                     auto function = v.function_ ;
                     auto progfunction = (ProgFunction*)function ;
-                    auto itr = context.recursive_.find(progfunction) ;
-                    if (itr != std::end(context.recursive_)) {
-                        std::cout << "RECURSION" << std::endl ;
-                        if (!context.recursion_) {
+                    auto rec = context.recursive_ ;
+                    auto itr = rec.find(progfunction) ;
+
+                    if (itr != std::end(rec)) {
+                        context.recursion_ = true ;
+                        return {} ;
+                        
+                        /*
+                        merge_list (
+                                context.return_points_,
+                                analyzer.merge_) ;
+                        
+                        if (!context.return_points) {
                             // first time we see the recursion
-                            context.recursion_ = true ;
+                            std::cout << "return bottom" << std::endl ;
                             return {Lattice(Lattice::mclass::BOTTOM) };
                         } else {
                             // returns a vector
@@ -129,8 +139,13 @@ namespace mcvm { namespace analysis { namespace ti {
                                         context.return_points_,
                                         analyzer.merge_,
                                         progfunction);
+                            std::cout << "return partial " << std::endl ;
+                            for (auto a:ret) {
+                                std::cout << a.toString() << std::endl ;
+                            }
                             return ret ;
                         }
+                        */
                     } else { // Not recursive, analyze it
                         
                         // Construct the param args
@@ -186,8 +201,8 @@ namespace mcvm { namespace analysis { namespace ti {
                 }
                 
             default:
-                assert(false) ;
-                break;
+                //std::cout << "Unsupported param type" << v.toString() << std::endl ;
+                return {} ;
         }
     }
 
@@ -208,18 +223,16 @@ namespace mcvm { namespace analysis { namespace ti {
             pObject = nullptr;
         }
         if (pObject == nullptr || pObject->getType() != DataObject::Type::FUNCTION)
-        {
-            throw TypeError() ;
-        }
+            return {} ;
+        
         Function* function = (Function*)pObject;
         Lattice l ;
         if (function->isProgFunction() ) {
-            l = Lattice(Lattice::mclass::PROGFUNCTION);
-            l.function_ = function ;
+            l = Lattice(Lattice::mclass::PROGFUNCTION) ;
         } else {
             l = Lattice(Lattice::mclass::LIBFUNCTION) ;
         }
-        l.function_ = function ;
+            l.function_ = function ;
         return {l} ;
     }
     
@@ -227,8 +240,49 @@ namespace mcvm { namespace analysis { namespace ti {
             const MatrixExpr* expr,
             const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
-            const Info& in)
-    {
+            const Info& in) {
+        
+        Lattice ret;
+	auto& rows = expr->getRows();
+	if (rows.empty() || rows[0].empty())
+	{
+                ret.size_.push_back (0) ;
+                ret.integer_ = true ;
+                return {ret} ;
+	}
+        
+	for (auto rowItr = rows.begin(); rowItr != rows.end(); ++rowItr) {
+		auto& row = *rowItr;
+                for (auto colItr = row.begin(); colItr != row.end(); ++colItr) {
+			auto pExpr = *colItr;
+			auto typevec = analyzer.expression_(
+                                pExpr,
+                                analyzer,
+                                context,
+                                in) ;
+                        if (typevec.size() != 1)
+                            return {} ;
+                        
+                        auto type = typevec.front() ;
+                        if (rowItr == rows.begin() && colItr == row.begin()) {
+                            ret = type ;
+                        } else {
+                            if (ret.type_ != type.type_)
+                                return {} ;
+                            
+                            if (!type.integer_)
+                                ret.integer_ = false ;
+                        }
+                }
+        }
+        return {ret} ;
+    }
+
+    ExprInfo unaryop(
+            const UnaryOpExpr* expr,
+            const Analyzer<Info,ExprInfo>& analyzer,
+            AnalyzerContext<Info>& context,
+            const Info& in) {
         return {} ;
     }
 
@@ -236,8 +290,8 @@ namespace mcvm { namespace analysis { namespace ti {
             const BinaryOpExpr* expr,
             const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
-            const Info& in)
- {
+            const Info& in) {
+        
      auto left = analyzer.expression_(
              expr->getLeftExpr(),
              analyzer,
@@ -350,7 +404,10 @@ namespace mcvm { namespace analysis { namespace ti {
 
             if (rights.size() < lefts.size() ) {
                 std::cout << "Not enough returned values" << rights.size() << std::endl << lefts.size() << std::endl ;
-                return in ;
+                for (auto& l : lefts) {
+                    out [ getRootSymbol(l) ] = Lattice (Lattice::mclass::TOP) ;
+                }
+                return out ;
                 //throw std::exception() ;
             }
 
@@ -467,6 +524,7 @@ namespace mcvm { namespace analysis { namespace ti {
         ret.matrix_ = &ti::matrixexpr ;
         ret.str_= &ti::str;
         ret.binop_ =  &ti::binop ;
+        ret.unaryop_ =  &ti::unaryop ;
         ret.merge_ = &ti::merge ;
         return ret ;
     }

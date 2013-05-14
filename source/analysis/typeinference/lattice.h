@@ -37,7 +37,7 @@ struct Lattice
     std::vector<std::unique_ptr<Lattice>> cells_ ;
     std::unordered_map<std::string,std::unique_ptr<Lattice>> fields_ ;
     const Function* function_ = nullptr ;
-    bool integer_only_ = false ;
+    bool integer_ = false ;
     
 
     const LambdaExpr* lambda_ = nullptr ;
