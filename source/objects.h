@@ -25,7 +25,9 @@
 #include <gc_cpp.h>
 #include <gc/gc_allocator.h>
 #include <iostream>
+#include <vector>
 
+using DimVector = std::vector<size_t> ;
 
 /***************************************************************
 * Class   : DataObject

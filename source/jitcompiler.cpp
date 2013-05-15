@@ -7426,19 +7426,11 @@ void JITCompiler::compArrayWrite(
 	if (indices.size() > 1)
 	{
 		// Get a pointer to the dimension size array
-		/*pSizeArrayPtr = createNativeCall(
+		pSizeArrayPtr = createNativeCall(
 			currentBuilder,
 			(void*)BaseMatrixObj::getSizeArray,
 			LLVMValueVector(1, pMatrixObj)
-		);*/
-		//RAHUL: Changed to more efficient that avoids function call
-		unsigned int offset = MEMBER_OFFSET(BaseMatrixObj,m_size)+MEMBER_OFFSET(DimVector,m_ptr);
-		llvm::Value* intPtrMatrixObj = currentBuilder.CreatePtrToInt(pMatrixObj,getIntType(8),"inttoptr");
-		llvm::Value* intPtrSizeArrayPtr = currentBuilder.CreateAdd(intPtrMatrixObj,llvm::ConstantInt::get(getIntType(8),offset));
-		llvm::Value* pPtrSizeArrayPtr = currentBuilder.CreateIntToPtr(intPtrSizeArrayPtr,llvm::PointerType::getUnqual(llvm::PointerType::getUnqual(getIntType(sizeof(size_t)))),"ptrtoint");
-		pSizeArrayPtr = currentBuilder.CreateLoad(pPtrSizeArrayPtr);
-
-
+		);
 	}
 	
 	// Declare a value vector for the zero-indexing indices

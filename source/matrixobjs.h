@@ -33,7 +33,6 @@
 #include "runtimebase.h"
 #include "utility.h"
 #include "profiling.h"
-#include "dimvector.h"
 // Dimension vector type definition
 //typedef std::vector<size_t, gc_allocator<size_t> > DimVector;
 
@@ -467,7 +466,7 @@ public:
 		// horizontally for Matlab consistency 
 		if ((isEmpty() || isScalar()) && newSize.size() == 1)
 			//newSize.insert(newSize.begin(), 1);
-			newSize.insert(0, 1);
+			newSize = {0, 1};
 		
 		// Declare a variable for the number of matrix elements
 		size_t numElements = 1;
