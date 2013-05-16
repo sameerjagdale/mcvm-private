@@ -918,15 +918,14 @@ void JITCompiler::compileFunction(ProgFunction* pFunction, const TypeSetString& 
 		pFunction, compFunction.pFuncBody, compVersion.inArgTypes);
 	
 
-        // FIXME
-        auto analyzer = mcvm::analysis::ti::get_analyzer() ;
-        
+#if 1
         //Construt the input args
-        mcvm::analysis::ti::FlowInfo i ;
-        mcvm::analysis::AnalyzerContext<mcvm::analysis::ti::FlowInfo> context ;
-        auto result = mcvm::analysis::analyze(analyzer,context,pFunction,i) ;
+        mcvm::analysis::TypeFlowInfo i ;
+        mcvm::analysis::AnalyzerContext<mcvm::analysis::TypeFlowInfo> context ;
+        auto result = mcvm::analysis::analyze_function<mcvm::analysis::TypeFlowInfo,mcvm::analysis::TypeExprInfo>(context,pFunction,i) ;
         std::cout << result.data_ << std::endl;
         exit(0) ;
+#endif
         
 	if (s_jitCopyEnableVar)
 	{
@@ -2498,9 +2497,6 @@ void JITCompiler::compWrapperFunc(
     // Create an entry basic block for the function
 	llvm::BasicBlock* pEntryBlock = llvm::BasicBlock::Create(*s_Context, "entry", pFuncObj);
 	llvm::IRBuilder<> entryBuilder(pEntryBlock);
-	
-	// Get an iterator to the function arguments
-	llvm::Function::arg_iterator funcArgItr = pFuncObj->arg_begin();
 	
 	// Get a pointer to the function's input argument
 	llvm::Value* pInArrayArg = pFuncObj->arg_begin();

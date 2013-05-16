@@ -63,7 +63,6 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<Info>& context,
             const Info& in)
     {
-        std::cout << "specific fp" << std::endl ;
         Lattice lattice (Lattice::mclass::DOUBLE) ;
         lattice.size_ = {1,1} ;
         return {lattice} ;
@@ -75,7 +74,6 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<Info>& context,
             const Info& in)
     {
-        std::cout << "specific int" << std::endl ;
         Lattice lattice (Lattice::mclass::DOUBLE) ;
         lattice.integer_ = true ;
         lattice.size_ = {1,1} ;

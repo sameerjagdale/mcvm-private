@@ -913,7 +913,6 @@ template <> MatrixObj<float64>* MatrixObj<float64>::matrixLeftDiv(const MatrixOb
 		//tau stays tau
 		double *c = pMatrixQB->m_pElements; //input B, output QB
 		int ldc = mb;
-		int lworkQuery = -1; //queries the work size
 		//work stays work
 		//info stays info
 

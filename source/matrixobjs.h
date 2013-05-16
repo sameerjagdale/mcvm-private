@@ -104,10 +104,10 @@ public:
 	const DimVector& getSize() const { return m_size; }
 	
 	// Accessor to get the number of dimensions
-	const size_t getNumDims() const { return m_size.size(); }
+	size_t getNumDims() const { return m_size.size(); }
 	
 	// Accessor to get the number of matrix elements
-	const size_t getNumElems() const { return m_numElements; }
+	size_t getNumElems() const { return m_numElements; }
 	
 	// Static method to get the number of matrix dimensions
 	static size_t getDimCount(const BaseMatrixObj* pMatrix) { return pMatrix->m_size.size(); }
@@ -2024,8 +2024,6 @@ public:
 		if (!isSquare())
 			return false;
 		
-		// Get the number of columns and rows
-		size_t numCols = m_size[0];
 		size_t numRows = m_size[1];
 		
 		// For each row

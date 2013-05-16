@@ -47,7 +47,7 @@ public:
 	};
 	
 	// Constructor and destructor
-	IIRNode() {}
+	IIRNode() = default ;
 	virtual ~IIRNode() {}
 	
 	// Method to recursively copy this node
