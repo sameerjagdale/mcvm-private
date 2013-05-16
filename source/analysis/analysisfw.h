@@ -22,9 +22,15 @@ namespace mcvm { namespace analysis {
 
     template <typename FlowInfo>
         FlowInfo operator+ (const FlowInfo& left,const FlowInfo& right) ;
+    
     template <typename FlowInfo>
         FlowInfo operator- (const FlowInfo& left,const FlowInfo& right) ;
-
+   
+    template <typename FlowInfo>
+    FlowInfo merge(
+            const FlowInfo&,
+            const FlowInfo&) ;
+    
     template <typename FlowInfo>
         struct AnalyzerContext {
             std::vector<FlowInfo> break_points_ ;
@@ -41,59 +47,9 @@ namespace mcvm { namespace analysis {
             Environment* local_env_ ;
         };
 
-    template <typename FlowInfo,typename ExprInfo>
-        struct Analyzer {
-
-            std::function<FlowInfo(FlowInfo&,FlowInfo&)> merge_ ;
-
-            template <typename E>
-                using ExpressionFn = std::function<ExprInfo(
-                        const E*,
-                        const Analyzer<FlowInfo,ExprInfo>&,
-                        AnalyzerContext<FlowInfo>&,
-                        const FlowInfo& //in set
-                        )> ;
-
-            ExpressionFn<Expression> expression_ ;
-            ExpressionFn<CellIndexExpr> cellindex_;
-            ExpressionFn<IntConstExpr> intconst_;
-            ExpressionFn<FnHandleExpr> fnhandle_;
-            ExpressionFn<LambdaExpr> lambda_;
-            ExpressionFn<CellArrayExpr> cellarray_;
-            ExpressionFn<FPConstExpr> fpconst_;
-            ExpressionFn<ParamExpr> paramexpr_;
-            ExpressionFn<DotExpr> dotexpr_ ;
-            ExpressionFn<BinaryOpExpr> binop_;
-            ExpressionFn<UnaryOpExpr> unaryop_;
-            ExpressionFn<MatrixExpr> matrix_;
-            ExpressionFn<StrConstExpr> str_;
-            ExpressionFn<SymbolExpr> symbol_function_;
-            ExpressionFn<EndExpr> end_;
-            ExpressionFn<RangeExpr> range_;
-
-            std::function<ExprInfo(
-                    const LibFunction*
-                    )> libfunction_ ;
-            
-
-            template <typename Stmt>
-                using TransferFn = std::function<FlowInfo(
-                        const Stmt*,
-                        const Analyzer& ,
-                        AnalyzerContext<FlowInfo>&,
-                        const FlowInfo&
-                        )> ;
-
-            TransferFn<AssignStmt> assignstmt_ ;
-            TransferFn<StmtSequence> sequencestmt_ ;
-            TransferFn<ForStmt> forstmt_ ;
-            TransferFn<LoopStmt> loopstmt_ ;
-        };
-
     template <typename FlowInfo>
         FlowInfo merge_list(
-                const std::vector<FlowInfo>& infos,
-                const std::function<FlowInfo(FlowInfo&,FlowInfo&)>& merge
+                const std::vector<FlowInfo>& infos
                 ) 
         {
             auto merged = * infos.begin() ;
@@ -122,10 +78,149 @@ namespace mcvm { namespace analysis {
             return ret ;
         }
 
-                
+    template <typename Expr, typename FlowInfo, typename ExprInfo>
+    ExprInfo analyze_expr (
+            const Expr* expr,
+            AnalyzerContext<FlowInfo>& context,
+            const FlowInfo& in) ;
+
+    template <typename FlowInfo, typename ExprInfo>
+        FlowInfo analyze_sequencestmt (
+                const StmtSequence* stmt,
+                AnalyzerContext<FlowInfo>& context,
+                const FlowInfo& in);
+    
+    template <typename FlowInfo, typename ExprInfo>
+        FlowInfo analyze_loopstmt (
+                const LoopStmt* loop,
+                AnalyzerContext<FlowInfo>& context,
+                const FlowInfo& in
+                ){
+            
+            auto current = in ;
+            for (;;) {
+                // Handle the init seq
+                auto initseq = loop->getInitSeq() ;
+                auto after_init = analyze_sequencestmt<FlowInfo,ExprInfo> (
+                        initseq,
+                        context,
+                        in) ;
+
+
+                // Test sequence
+                auto testseq = loop->getTestSeq() ;
+                auto after_test = analyze_sequencestmt<FlowInfo,ExprInfo> (
+                        testseq,
+                        context,
+                        after_init) ;
+
+                // Run on the body loop
+                auto body = loop->getBodySeq() ;
+                auto after_body = analyze_sequencestmt<FlowInfo,ExprInfo> (
+                        body,
+                        context,
+                        after_test) ;
+
+                // Incrementation seq
+                auto incrseq = loop->getIncrSeq() ;
+
+                auto after_incr = analyze_sequencestmt<FlowInfo,ExprInfo> (
+                        incrseq,
+                        context,
+                        after_body) ;
+
+                if (current == after_incr) {
+                    return after_incr ;
+                } else {
+                    current = after_incr ;
+                }
+            }
+        }
+    
+            
+    template <typename FlowInfo>
+        FlowInfo analyze_assignstmt (
+                const AssignStmt* seq,
+                AnalyzerContext<FlowInfo>& context,
+                const FlowInfo& in
+                );
+    
+    template <typename FlowInfo, typename ExprInfo>
+        FlowInfo analyze_sequencestmt (
+                const StmtSequence* seq,
+                AnalyzerContext<FlowInfo>& context,
+                const FlowInfo& in
+                ){
+            
+            auto current = in ;
+            for (auto st: seq->getStatements() ) {
+                std::cout << st->toString() << std::endl ;
+                switch (st->getStmtType()) {
+                    case Statement::ASSIGN:
+                        current = analyze_assignstmt<FlowInfo>(
+                                static_cast<AssignStmt*>(st),
+                                context,
+                                current);
+                        break;
+
+                    case Statement::IF_ELSE:
+                        {
+                            auto stmt = static_cast<IfElseStmt*>(st) ;
+                            auto stmt_if = stmt->getIfBlock() ;
+                            auto stmt_else = stmt->getElseBlock() ;
+                            auto info_if =
+                                analyze_sequencestmt<FlowInfo,ExprInfo> (
+                                        static_cast<StmtSequence*>(stmt_if),
+                                        context,
+                                        current) ;
+                            auto info_else =
+                                analyze_sequencestmt<FlowInfo,ExprInfo> (
+                                        static_cast<StmtSequence*>(stmt_else),
+                                        context,
+                                        current) ;
+
+                            current = merge(info_if,info_else) ;
+                        }
+                        break;
+                    case Statement::LOOP:
+                        current = analyze_loopstmt<FlowInfo,ExprInfo>(
+                                static_cast<LoopStmt*>(st),
+                                context,
+                                current) ;
+                        break;
+
+                    case Statement::BREAK:
+                        context.break_points_.push_back(current) ;
+                        break;
+
+                    case Statement::CONTINUE:
+                        context.continue_points_.push_back(current) ;
+                        break;
+
+                    case Statement::RETURN:
+                        context.return_points_.push_back(current) ;
+                        break;
+
+                    case Statement::EXPR:
+                        //current = exprstmt(current,static_cast<ExprStmt*>(st) ) ;
+                        break;
+
+                    case Statement::FOR:
+                        break;
+
+                    case Statement::SWITCH:
+                    case Statement::COMPOUND_END:
+                    case Statement::WHILE:
+                        break;
+                }
+                std::cout << current << std::endl ;
+                context.data_[(IIRNode*)st] = current ;
+            }
+            return current ;
+        }
+
     template <typename FlowInfo, typename ExprInfo, typename Info>
         AnalyzerContext<FlowInfo> analyze(
-                const Analyzer<FlowInfo,ExprInfo>& analyzer,
                 AnalyzerContext<FlowInfo>& context,
                 ProgFunction* function,
                 const std::vector<Info>& params
@@ -150,12 +245,11 @@ namespace mcvm { namespace analysis {
                     ++it_caller, ++it_callee) {
                 i [ (SymbolExpr*) *it_callee] = *it_caller ;
             }
-            return analyze(analyzer,context,function,i) ;
+            return analyze(context,function,i) ;
         }
 
     template <typename FlowInfo, typename ExprInfo>
-        AnalyzerContext<FlowInfo> analyze(
-                const Analyzer<FlowInfo,ExprInfo>& analyzer,
+        AnalyzerContext<FlowInfo> analyze_function(
                 AnalyzerContext<FlowInfo>& context,
                 ProgFunction* function,
                 const FlowInfo& entry
@@ -165,15 +259,14 @@ namespace mcvm { namespace analysis {
             context.local_env_ = ProgFunction::getLocalEnv(function);
             context.recursive_.insert(function) ;
             context.recursion_ = false ;
-            auto end_info = analyzer.sequencestmt_ (body,analyzer,context,entry) ;
+            auto end_info = analyze_sequencestmt<FlowInfo,ExprInfo>(body,context,entry) ;
             context.return_points_.push_back(end_info) ;
             std::cout << "return size" << context.return_points_.size() << std::endl ;
             
             // Compute the return flowinfo from returns point
             context.returns_ = 
                 merge_list(
-                        context.return_points_,
-                        analyzer.merge_);
+                        context.return_points_);
             
             std::cout << "FIN " << context.returns_ << std::endl ;
 
@@ -192,197 +285,49 @@ namespace mcvm { namespace analysis {
             FlowInfo new_entry ;
             FlowInfo new_end_info ;
             do {
-                new_end_info = analyzer.sequencestmt_ (body,analyzer,context,entry) ;
+                new_end_info = analyze_sequencestmt<FlowInfo,ExprInfo>(body,context,entry) ;
             } while (context.returns_ != new_context.returns_ ) ;
             return new_context ;
         }
 
 
     template <typename FlowInfo, typename ExprInfo>
-        FlowInfo loopstmt(
-                const LoopStmt* loop,
-                const Analyzer<FlowInfo,ExprInfo>& analyzer,
-                AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in
-                ){
-            
-            auto current = in ;
-            for (;;) {
-                // Handle the init seq
-                auto initseq = loop->getInitSeq() ;
-                auto after_init = analyzer.sequencestmt_(
-                        initseq,
-                        analyzer,
-                        context,
-                        in) ;
-
-
-                // Test sequence
-                auto testseq = loop->getTestSeq() ;
-                auto after_test = analyzer.sequencestmt_(
-                        testseq,
-                        analyzer,
-                        context,
-                        after_init) ;
-
-                // Run on the body loop
-                auto body = loop->getBodySeq() ;
-                auto after_body = analyzer.sequencestmt_(
-                        body,
-                        analyzer,
-                        context,
-                        after_test) ;
-
-                // Incrementation seq
-                auto incrseq = loop->getIncrSeq() ;
-
-                auto after_incr = analyzer.sequencestmt_(
-                        incrseq,
-                        analyzer,
-                        context,
-                        after_body) ;
-
-                if (current == after_incr) {
-                    return after_incr ;
-                } else {
-                    current = after_incr ;
-                }
-            }
-        }
-    
-    template <typename FlowInfo, typename ExprInfo>
-        FlowInfo sequencestmt(
-                const StmtSequence* seq,
-                const Analyzer<FlowInfo,ExprInfo>& analyzer,
-                AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in
-                ){
-            auto current = in ;
-            for (auto st: seq->getStatements() ) {
-                std::cout << st->toString() << std::endl ;
-                switch (st->getStmtType()) {
-                    case Statement::ASSIGN:
-                        current = analyzer.assignstmt_(
-                                static_cast<AssignStmt*>(st),
-                                analyzer,
-                                context,
-                                current);
-                        break;
-
-                    case Statement::IF_ELSE:
-                        {
-                            auto stmt = static_cast<IfElseStmt*>(st) ;
-                            auto stmt_if = stmt->getIfBlock() ;
-                            auto stmt_else = stmt->getElseBlock() ;
-                            auto info_if =
-                                analyzer.sequencestmt_(
-                                        static_cast<StmtSequence*>(stmt_if),
-                                        analyzer,
-                                        context,
-                                        current) ;
-                            auto info_else =
-                                analyzer.sequencestmt_(
-                                        static_cast<StmtSequence*>(stmt_else),
-                                        analyzer,
-                                        context,
-                                        current) ;
-
-                            current = analyzer.merge_(info_if,info_else) ;
-                        }
-                        break;
-                    case Statement::LOOP:
-                        current = analyzer.loopstmt_(
-                                static_cast<LoopStmt*>(st),
-                                analyzer,
-                                context,
-                                current) ;
-                        break;
-
-                    case Statement::BREAK:
-                        context.break_points_.push_back(current) ;
-                        break;
-
-                    case Statement::CONTINUE:
-                        context.continue_points_.push_back(current) ;
-                        break;
-
-                    case Statement::RETURN:
-                        context.return_points_.push_back(current) ;
-                        break;
-
-                    case Statement::EXPR:
-                        //current = exprstmt(current,static_cast<ExprStmt*>(st) ) ;
-                        break;
-
-                    case Statement::FOR:
-                        current = analyzer.forstmt_(
-                                static_cast<ForStmt*>(st),
-                                analyzer,
-                                context,
-                                current
-                                );
-                        break;
-
-                    case Statement::SWITCH:
-                    case Statement::COMPOUND_END:
-                    case Statement::WHILE:
-                        break;
-                }
-                std::cout << current << std::endl ;
-                context.data_[(IIRNode*)st] = current ;
-            }
-            return current ;
-        }
-
-    /*
-    template <typename FlowInfo, typename ExprInfo>
-    ExprInfo range (
-            const Expression* expr,
-            const Analyzer<FlowInfo,ExprInfo>& analyzer,
-            AnalyzerContext<FlowInfo>& context,
-            const FlowInfo& in)
-    {
-        std::cout << "GENERIC" << std::endl ;
-    }
-    */
-
-    template <typename FlowInfo, typename ExprInfo>
-        ExprInfo expression(
+        ExprInfo analyze_expr(
                 const Expression* expr,
-                const Analyzer<FlowInfo,ExprInfo>& analyzer,
                 AnalyzerContext<FlowInfo>& context,
                 const FlowInfo& in)
         {
+            std::cout << "dispatch" << std::endl ;
+            
             switch (expr->getExprType()) {
                 case Expression::ExprType::MATRIX:
-                    return analyzer.matrix_((MatrixExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<MatrixExpr,FlowInfo,ExprInfo> ((MatrixExpr*)expr,context,in ) ;
                 case Expression::ExprType::FN_HANDLE:
-                    return analyzer.fnhandle_((FnHandleExpr*)expr,analyzer,context,in ) ;
+                    //return analyze_expr<FnHandleExpr,FlowInfo,ExprInfo> ((FnHandleExpr*)expr,context,in ) ;
                 case Expression::ExprType::LAMBDA:
-                    return analyzer.lambda_((LambdaExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<LambdaExpr,FlowInfo,ExprInfo> ((LambdaExpr*)expr,context,in ) ;
                 case Expression::ExprType::CELLARRAY:
-                    return analyzer.cellarray_((CellArrayExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<CellArrayExpr,FlowInfo,ExprInfo> ((CellArrayExpr*)expr,context,in ) ;
                 case Expression::ExprType::END:
-                    return analyzer.end_((EndExpr*)expr,analyzer,context,in ) ;
+                    //return analyze_expr<EndExpr,FlowInfo,ExprInfo> ((EndExpr*)expr,context,in ) ;
                 case Expression::ExprType::RANGE:
-                    //return range<FlowInfo,ExprInfo> ((RangeExpr*)expr,analyzer,context,in ) ;
-                    return analyzer.range_((RangeExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<RangeExpr,FlowInfo,ExprInfo> ((RangeExpr*)expr,context,in ) ;
                 case Expression::ExprType::STR_CONST:
-                    return analyzer.str_((StrConstExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<StrConstExpr,FlowInfo,ExprInfo> ((StrConstExpr*)expr,context,in ) ;
                 case Expression::ExprType::FP_CONST:
-                    return analyzer.fpconst_((FPConstExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<FPConstExpr,FlowInfo,ExprInfo> ((FPConstExpr*)expr,context,in ) ;
                 case Expression::ExprType::BINARY_OP:
-                    return analyzer.binop_((BinaryOpExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<BinaryOpExpr,FlowInfo,ExprInfo> ((BinaryOpExpr*)expr,context,in ) ;
                 case Expression::ExprType::UNARY_OP:
-                    return analyzer.unaryop_((UnaryOpExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<UnaryOpExpr,FlowInfo,ExprInfo> ((UnaryOpExpr*)expr,context,in ) ;
                 case Expression::ExprType::CELL_INDEX:
-                    return analyzer.cellindex_((CellIndexExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<CellIndexExpr,FlowInfo,ExprInfo> ((CellIndexExpr*)expr,context,in ) ;
                 case Expression::ExprType::INT_CONST:
-                    return analyzer.intconst_((IntConstExpr*)expr,analyzer,context,in ) ;
+                    return analyze_expr<IntConstExpr,FlowInfo,ExprInfo> ((IntConstExpr*)expr,context,in ) ;
                 case Expression::ExprType::PARAM:
-                    return analyzer.paramexpr_( (ParamExpr*)expr, analyzer, context, in) ;
+                    return analyze_expr<ParamExpr,FlowInfo,ExprInfo> ((ParamExpr*)expr,context,in ) ;
                 case Expression::ExprType::DOT:
-                    return analyzer.dotexpr_( (DotExpr*)expr, analyzer, context, in) ;
+                    return analyze_expr<DotExpr,FlowInfo,ExprInfo> ((DotExpr*)expr,context,in ) ;
                 case Expression::ExprType::SYMBOL:
                     {
                         auto s = (SymbolExpr*)expr;
@@ -390,7 +335,7 @@ namespace mcvm { namespace analysis {
                         if (itr != std::end(in)) {
                             return {itr->second};
                         }
-                        return analyzer.symbol_function_(s,analyzer,context,in) ;
+                     //   return analyze_expr<SymbolExpr,FlowInfo,ExprInfo> ((SymbolExpr*)expr,context,in ) ;
                     }
             }
             return {};

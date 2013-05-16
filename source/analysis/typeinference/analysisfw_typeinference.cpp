@@ -2,11 +2,18 @@
 
 #include "dotexpr.h"
 
-namespace mcvm { namespace analysis { namespace ti {
+namespace mcvm { namespace analysis { 
 
-    Info merge(
-            const Info& a,
-            const Info& b) {
+    using Info = TypeFlowInfo ;
+    using Lattice = ti::Lattice ;
+    using ExprInfo = TypeExprInfo;
+    using E = TypeExprInfo ;
+    using F = TypeFlowInfo ;
+
+    template <>
+    TypeFlowInfo merge(
+            const TypeFlowInfo& a,
+            const TypeFlowInfo& b) {
         Info ret ;
         for (auto& var : a) {
             auto itr = b.find(var.first) ;
@@ -21,9 +28,18 @@ namespace mcvm { namespace analysis { namespace ti {
         return ret ;
     }
 
-    ExprInfo lambda(
+    template <>
+    ExprInfo analyze_expr(
+            const RangeExpr* expr,
+            AnalyzerContext<Info>& context,
+            const Info& in)
+    {
+        return {} ;
+    }
+
+    template <>
+    ExprInfo analyze_expr(
             const LambdaExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in)
     {
@@ -41,38 +57,39 @@ namespace mcvm { namespace analysis { namespace ti {
         return {l} ;
     }
     
-    ExprInfo fpconst(
+    template <>
+    ExprInfo analyze_expr (
             const FPConstExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in)
     {
+        std::cout << "specific fp" << std::endl ;
         Lattice lattice (Lattice::mclass::DOUBLE) ;
         lattice.size_ = {1,1} ;
         return {lattice} ;
     }
 
-    ExprInfo intconst(
+    template <>
+    ExprInfo analyze_expr (
             const IntConstExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in)
     {
+        std::cout << "specific int" << std::endl ;
         Lattice lattice (Lattice::mclass::DOUBLE) ;
         lattice.integer_ = true ;
         lattice.size_ = {1,1} ;
         return {lattice} ;
     }
 
-    ExprInfo dotexpr(
+    template <>
+    ExprInfo analyze_expr (
             const DotExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in)
     {
-        auto left_lattice = analyzer.expression_ (
+        auto left_lattice = analyze_expr<Info,ExprInfo> (
                 expr->getExpr(),
-                analyzer,
                 context,
                 in) ;
        
@@ -98,14 +115,15 @@ namespace mcvm { namespace analysis { namespace ti {
         return {} ;
     }
     
-    ExprInfo paramexpr(
+    template <>
+    ExprInfo analyze_expr (
             const ParamExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in) {
         
         auto leftexpr = expr->getSymExpr() ;
-        auto left = analyzer.expression_(leftexpr,analyzer,context,in);
+        auto left = analyze_expr<TypeFlowInfo,TypeExprInfo> 
+            (leftexpr,context,in);
         auto v = * left.begin() ;
 
         if (v.type_ == Lattice::mclass::FNHANDLE) {
@@ -114,10 +132,6 @@ namespace mcvm { namespace analysis { namespace ti {
 
         switch (v.type_) {
             case Lattice::mclass::LIBFUNCTION:
-                return analyzer.libfunction_(
-                        (const LibFunction*)v.function_ 
-                        );
-                
             case Lattice::mclass::PROGFUNCTION:
                 {
                     auto function = v.function_ ;
@@ -156,23 +170,23 @@ namespace mcvm { namespace analysis { namespace ti {
                         
                         // Construct the param args
                         auto input_env = construct_function_environment(
-                                analyzer,
                                 context,
                                 in,
                                 expr->getArguments(),
                                 progfunction->getInParams());
                         
                         //Analyze it
-                        AnalyzerContext<FlowInfo> c ;
-                        c = analyze(analyzer,c,progfunction,input_env) ; 
+                        AnalyzerContext<TypeFlowInfo> c ;
+                        //c = analyze_function<TypeFlowInfo> (c,progfunction,input_env) ; 
 
                         //Get the output types
+                        /*
                         auto ret = 
                             compute_returned_vector<Info,ExprInfo,Lattice>(
                                     c.return_points_,
-                                    analyzer.merge_,
                                     progfunction);
                         return ret ;
+                        */
                     }
                 }
                 break;
@@ -183,7 +197,6 @@ namespace mcvm { namespace analysis { namespace ti {
                     // from lambda environment and params
                    
                     auto input_env = construct_function_environment(
-                            analyzer,
                             context,
                             in,
                             expr->getArguments(),
@@ -199,9 +212,8 @@ namespace mcvm { namespace analysis { namespace ti {
 
                             
                     // Analyze the body
-                    return analyzer.expression_(
+                    return analyze_expr <TypeFlowInfo, TypeExprInfo> (
                             v.lambda_->getBodyExpr() ,
-                            analyzer,
                             context,
                             input_env);
                 }
@@ -210,11 +222,12 @@ namespace mcvm { namespace analysis { namespace ti {
                 //std::cout << "Unsupported param type" << v.toString() << std::endl ;
                 return {} ;
         }
+
+        return {} ;
     }
 
     ExprInfo symbol_function(
             const SymbolExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in)
     {
@@ -242,9 +255,9 @@ namespace mcvm { namespace analysis { namespace ti {
         return {l} ;
     }
     
-    ExprInfo matrixexpr(
+    template <>
+    ExprInfo analyze_expr (
             const MatrixExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in) {
         
@@ -266,12 +279,11 @@ namespace mcvm { namespace analysis { namespace ti {
 	for (auto rowItr = rows.begin(); rowItr != rows.end(); ++rowItr) {
 		auto& row = *rowItr;
                
-                size_t colsize ;
+                //size_t colsize ;
                 for (auto colItr = row.begin(); colItr != row.end(); ++colItr) {
 			auto pExpr = *colItr;
-			auto typevec = analyzer.expression_(
+			auto typevec = analyze_expr <TypeFlowInfo,TypeExprInfo> (
                                 pExpr,
-                                analyzer,
                                 context,
                                 in) ;
                         if (typevec.size() != 1)
@@ -303,15 +315,14 @@ namespace mcvm { namespace analysis { namespace ti {
         return {ret} ;
     }
 
-    ExprInfo unaryop(
+    template <>
+    ExprInfo analyze_expr (
             const UnaryOpExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in) {
         
-	auto type = analyzer.expression_(
+	auto type = analyze_expr <Info,ExprInfo> (
 		expr->getOperand(),
-                analyzer,
                 context,
                 in);
 	
@@ -327,21 +338,19 @@ namespace mcvm { namespace analysis { namespace ti {
 	}
     }
 
-    ExprInfo binop(
+    template <>
+    ExprInfo analyze_expr (
             const BinaryOpExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in) {
         
-     auto left = analyzer.expression_(
+     auto left = analyze_expr <F,E> (
              expr->getLeftExpr(),
-             analyzer,
              context,
              in) ;
 
-     auto right = analyzer.expression_(
+     auto right = analyze_expr <F,E> (
              expr->getRightExpr(),
-             analyzer,
              context,
              in) ;
      
@@ -359,18 +368,18 @@ namespace mcvm { namespace analysis { namespace ti {
 		case BinaryOpExpr::MINUS:
 		case BinaryOpExpr::ARRAY_MULT:
 		case BinaryOpExpr::ARRAY_POWER:
-			return typemap::array_arithm_op(l,r);
+			return ti::typemap::array_arithm_op(l,r);
 		case BinaryOpExpr::ARRAY_DIV:
 		case BinaryOpExpr::ARRAY_LEFT_DIV:
 			return {} ; //arrayArithOpTypeMapping<false>(argTypes);
 		case BinaryOpExpr::MULT:
-			return typemap::mult_op(l,r);
+			return ti::typemap::mult_op(l,r);
 		case BinaryOpExpr::DIV:
-			return typemap::div_op(l,r);
+			return ti::typemap::div_op(l,r);
 		case BinaryOpExpr::LEFT_DIV:
 			return {} ; //leftDivOpTypeMapping(argTypes);
 		case BinaryOpExpr::POWER:
-			return typemap::power_op(l,r) ;
+			return ti::typemap::power_op(l,r) ;
 		// Logical arithmetic operation
 		case BinaryOpExpr::EQUAL:
 		case BinaryOpExpr::NOT_EQUAL:
@@ -380,7 +389,7 @@ namespace mcvm { namespace analysis { namespace ti {
 		case BinaryOpExpr::GREATER_THAN_EQ:
 		case BinaryOpExpr::ARRAY_OR:
 		case BinaryOpExpr::ARRAY_AND:
-			return typemap::logical_op(l,r) ; //arrayLogicOpTypeMapping(argTypes);
+			return ti::typemap::logical_op(l,r) ; //arrayLogicOpTypeMapping(argTypes);
 		case BinaryOpExpr::OR:
 		case BinaryOpExpr::AND:
 		{
@@ -393,9 +402,9 @@ namespace mcvm { namespace analysis { namespace ti {
         return {} ;
     }
 
-    ExprInfo str(
+    template <>
+    ExprInfo analyze_expr (
             const StrConstExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in)
     {
@@ -411,7 +420,7 @@ namespace mcvm { namespace analysis { namespace ti {
                 return l ;
             case Expression::PARAM:
                 {
-                auto param = (ParamExpr*)expr ;
+                //auto param = (ParamExpr*)expr ;
                 auto lattice = l ;
                 lattice.size_.push_back(45) ;
                 return lattice ;
@@ -431,18 +440,19 @@ namespace mcvm { namespace analysis { namespace ti {
         }
     }
     
-    Info assignstmt(
+    template <>
+    TypeFlowInfo analyze_assignstmt (
             const AssignStmt* assign,
-            const Analyzer<FlowInfo,ExprInfo>& analyzer,
-            AnalyzerContext<FlowInfo>& context,
-            const Info& in
-            )
-    {
+            AnalyzerContext<TypeFlowInfo>& context,
+            const TypeFlowInfo& in
+            ) {
+        
             auto out = in ;
 
-            auto rights = analyzer.expression_ (assign->getRightExpr(),analyzer,context,in) ;
+            auto rights = analyze_expr <F,E>
+                (assign->getRightExpr(),context,in) ;
+            
             auto lefts = assign->getLeftExprs() ;
-
 
             if (rights.size() < lefts.size() ) {
                 std::cout << "Not enough returned values" << rights.size() << std::endl << lefts.size() << std::endl ;
@@ -490,10 +500,9 @@ namespace mcvm { namespace analysis { namespace ti {
             return out;
         }
         
-    FlowInfo construct_function_environment(
-            const Analyzer<Info,ExprInfo>& analyzer,
+    TypeFlowInfo construct_function_environment(
             AnalyzerContext<Info>& context,
-            const FlowInfo& in,
+            const TypeFlowInfo& in,
             const std::vector<Expression*>& caller,
             const std::vector<SymbolExpr*>& callee
             )
@@ -501,7 +510,7 @@ namespace mcvm { namespace analysis { namespace ti {
         auto it1 = caller.begin() ;
         auto it2 = callee.begin() ;
 
-        FlowInfo res ;
+        TypeFlowInfo res ;
 
         for (;
                 it1 != std::end(caller) ;
@@ -509,9 +518,8 @@ namespace mcvm { namespace analysis { namespace ti {
             
             const Expression* expr = *it1 ;
 
-            auto vec = analyzer.expression_(
+            auto vec = analyze_expr <F,E> (
                     expr,
-                    analyzer,
                     context,
                     in);
             
@@ -524,17 +532,17 @@ namespace mcvm { namespace analysis { namespace ti {
         return res;
     }
 
-    ExprInfo cellindex(
+    template <>
+    ExprInfo analyze_expr (
             const CellIndexExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in){
         return {} ;
     }
     
-    ExprInfo cellarray(
+    template <>
+    ExprInfo analyze_expr (
             const CellArrayExpr* expr,
-            const Analyzer<Info,ExprInfo>& analyzer,
             AnalyzerContext<Info>& context,
             const Info& in) {
         auto rows = expr->getRows() ;
@@ -560,35 +568,11 @@ namespace mcvm { namespace analysis { namespace ti {
         return {l} ;
     }
     
-    Analyzer<Info,ExprInfo> get_analyzer() {
-        Analyzer<Info,ExprInfo> ret ;
-        ret.sequencestmt_ = &sequencestmt<Info,ExprInfo> ;
-        ret.loopstmt_ = &loopstmt<Info,ExprInfo> ;
-        ret.expression_ = &expression<Info,ExprInfo> ;
-        
-        ret.fpconst_ = &ti::fpconst ;
-        ret.assignstmt_ = &ti::assignstmt ;
-        ret.lambda_ = &ti::lambda ;
-        ret.intconst_ = &ti::intconst ;
-        ret.paramexpr_ = &ti::paramexpr ;
-        ret.dotexpr_ = &ti::dotexpr ;
-        ret.cellindex_ = &ti::cellindex ;
-        ret.cellarray_ = &ti::cellarray ;
-        ret.symbol_function_ = &ti::symbol_function ;
-        ret.matrix_ = &ti::matrixexpr ;
-        ret.str_= &ti::str;
-        ret.binop_ =  &ti::binop ;
-        ret.unaryop_ =  &ti::unaryop ;
-        ret.libfunction_ =  &ti::libfunction ;
-        ret.merge_ = &ti::merge ;
-        return ret ;
-    }
-
-}}}
+}}
 
 std::ostream& operator<<(
         std::ostream &strm,
-        const mcvm::analysis::ti::Info& symbolmap)
+        const mcvm::analysis::TypeFlowInfo& symbolmap)
 {
         for (auto& pp : symbolmap) {
             strm << pp.first->toString() << " : " << pp.second.toString() << std::endl ;
@@ -598,7 +582,7 @@ std::ostream& operator<<(
 
 std::ostream& operator<<(
         std::ostream &strm,
-        const std::unordered_map<IIRNode*,mcvm::analysis::ti::Info>& stmtmap)
+        const std::unordered_map<IIRNode*,mcvm::analysis::TypeFlowInfo>& stmtmap)
 {
     for (auto& p : stmtmap) {
         strm << "--------------------------" ;
