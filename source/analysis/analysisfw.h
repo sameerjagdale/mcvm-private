@@ -86,6 +86,11 @@ namespace mcvm { namespace analysis {
     template <typename FlowInfo>
         AnalyzerContext<FlowInfo> analyze(ProgFunction* function);
     
+    template <typename FlowInfo>
+        AnalyzerContext<FlowInfo> analyze(
+                ProgFunction* function,
+                const FlowInfo& entry);
+    
     /************************************
      * Template Implementation 
      ************************************/
@@ -180,9 +185,11 @@ namespace mcvm { namespace analysis {
             
             auto stmtsequence = seq->getStatements() ;
 
+            asm("#matthieu") ;
             if (d == Direction::Backward) 
                 std::reverse (std::begin(stmtsequence) , std::end(stmtsequence)) ;
 
+            asm("#finmatthieu") ;
             for (auto st: stmtsequence) {
                 std::cout << st->toString() << std::endl ;
                 switch (st->getStmtType()) {

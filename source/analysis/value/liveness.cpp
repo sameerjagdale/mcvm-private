@@ -3,7 +3,29 @@
 #include <analysis/analysisfw.h>
 #include <analysis/value/liveness.h>
 
+#include <dotexpr.h>
+
 namespace mcvm { namespace analysis {
+
+    using L = LivenessInfo ;
+    
+    template <>
+        L operator+ (const L& left,const L& right) {
+            L ret = left ;
+           for (auto& r : right) {
+               ret.insert(r) ;
+           }
+           return ret;
+        }
+    
+    template <>
+        L operator- (const L& left,const L& right) {
+            L ret = left ;
+            for (auto& r : right) {
+                ret.erase(r) ;
+            }
+            return ret;
+        }
 
     template <>
         AnalyzerContext<LivenessInfo> analyze(ProgFunction* function) {
@@ -28,7 +50,11 @@ namespace mcvm { namespace analysis {
                     assign->getRightExpr(),
                     context,
                     in);
-            return rhs ;
+            //auto lhs = assign->getLeftExprs() ;
+            LivenessInfo kill ;
+            LivenessInfo lhs ;
+            auto gen = lhs + rhs ;
+            return (in - kill) + gen;
         }
 
     template <>
@@ -41,6 +67,16 @@ namespace mcvm { namespace analysis {
             return out;
         }
 
+    template <>
+        LivenessInfo analyze_expr (
+                const DotExpr* dot,
+                AnalyzerContext<LivenessInfo>& context,
+                const LivenessInfo& in) {
+            return analyze_expr<LivenessInfo,LivenessInfo>(
+                    dot->getExpr(),
+                    context,
+                    in);
+        }
 
 }}
 
