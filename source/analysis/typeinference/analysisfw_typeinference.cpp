@@ -11,6 +11,13 @@ namespace mcvm { namespace analysis {
     using F = TypeFlowInfo ;
 
     template <>
+        AnalyzerContext<F> analyze(ProgFunction* function) {
+            AnalyzerContext<F> context ;
+            F entry ;
+            return analyze_function<F,E,Direction::Forward> (context,function,entry) ;
+        }
+    
+    template <>
     TypeFlowInfo merge(
             const TypeFlowInfo& a,
             const TypeFlowInfo& b) {
@@ -224,11 +231,19 @@ namespace mcvm { namespace analysis {
         return {} ;
     }
 
-    ExprInfo symbol_function(
+    template <>
+    ExprInfo analyze_expr (
             const SymbolExpr* expr,
             AnalyzerContext<Info>& context,
             const Info& in)
     {
+        
+        auto s = (SymbolExpr*)expr;
+        auto itr = in.find(s) ;
+        if (itr != std::end(in)) {
+            return {itr->second};
+        }
+        
         DataObject* pObject;
         try
         {

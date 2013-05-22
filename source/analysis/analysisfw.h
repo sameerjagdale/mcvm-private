@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <algorithm>
 #include "stmtsequence.h"
 #include "assignstmt.h"
 #include "ifelsestmt.h"
@@ -20,16 +21,11 @@ class DotExpr;
 
 namespace mcvm { namespace analysis {
 
-    template <typename FlowInfo>
-        FlowInfo operator+ (const FlowInfo& left,const FlowInfo& right) ;
-    
-    template <typename FlowInfo>
-        FlowInfo operator- (const FlowInfo& left,const FlowInfo& right) ;
-   
-    template <typename FlowInfo>
-    FlowInfo merge(
-            const FlowInfo&,
-            const FlowInfo&) ;
+    /************************************
+     * Type declaration 
+     ************************************/
+
+    enum class Direction { Forward, Backward } ;
     
     template <typename FlowInfo>
         struct AnalyzerContext {
@@ -46,6 +42,53 @@ namespace mcvm { namespace analysis {
             bool recursion_ ;
             Environment* local_env_ ;
         };
+    
+    /************************************
+     *  Prototypes
+     ************************************/
+    template <typename FlowInfo>
+        FlowInfo operator+ (const FlowInfo& left,const FlowInfo& right) ;
+    
+    template <typename FlowInfo>
+        FlowInfo operator- (const FlowInfo& left,const FlowInfo& right) ;
+   
+    template <typename FlowInfo>
+    FlowInfo merge(
+            const FlowInfo&,
+            const FlowInfo&) ;
+    
+    template <typename Expr, typename FlowInfo, typename ExprInfo>
+        ExprInfo analyze_expr (
+                const Expr* expr,
+                AnalyzerContext<FlowInfo>& context,
+                const FlowInfo& in) { 
+            return ExprInfo{} ;
+        }
+
+    template <typename FlowInfo, typename ExprInfo, Direction d>
+        FlowInfo analyze_sequencestmt (
+                const StmtSequence* stmt,
+                AnalyzerContext<FlowInfo>& context,
+                const FlowInfo& in);
+    
+    template <typename FlowInfo>
+        FlowInfo analyze_assignstmt (
+                const AssignStmt* seq,
+                AnalyzerContext<FlowInfo>& context,
+                const FlowInfo& in);
+    
+    template <typename FlowInfo, typename ExprInfo, Direction d>
+        AnalyzerContext<FlowInfo> analyze_function (
+                AnalyzerContext<FlowInfo>& context,
+                ProgFunction* function,
+                const FlowInfo& entry);
+        
+    template <typename FlowInfo>
+        AnalyzerContext<FlowInfo> analyze(ProgFunction* function);
+    
+    /************************************
+     * Template Implementation 
+     ************************************/
 
     template <typename FlowInfo>
         FlowInfo merge_list(
@@ -65,7 +108,6 @@ namespace mcvm { namespace analysis {
                 const std::vector<FlowInfo>& infos,
                 const std::function<FlowInfo(FlowInfo&,FlowInfo&)>& merge,
                 const ProgFunction* function ) {
-            
             auto params = function->getOutParams() ;
             ExprInfo ret ;
             auto l = merge_list(infos,merge) ;
@@ -78,19 +120,7 @@ namespace mcvm { namespace analysis {
             return ret ;
         }
 
-    template <typename Expr, typename FlowInfo, typename ExprInfo>
-    ExprInfo analyze_expr (
-            const Expr* expr,
-            AnalyzerContext<FlowInfo>& context,
-            const FlowInfo& in) ;
-
-    template <typename FlowInfo, typename ExprInfo>
-        FlowInfo analyze_sequencestmt (
-                const StmtSequence* stmt,
-                AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in);
-    
-    template <typename FlowInfo, typename ExprInfo>
+    template <typename FlowInfo, typename ExprInfo, Direction d>
         FlowInfo analyze_loopstmt (
                 const LoopStmt* loop,
                 AnalyzerContext<FlowInfo>& context,
@@ -101,7 +131,7 @@ namespace mcvm { namespace analysis {
             for (;;) {
                 // Handle the init seq
                 auto initseq = loop->getInitSeq() ;
-                auto after_init = analyze_sequencestmt<FlowInfo,ExprInfo> (
+                auto after_init = analyze_sequencestmt<FlowInfo,ExprInfo,d> (
                         initseq,
                         context,
                         in) ;
@@ -109,14 +139,14 @@ namespace mcvm { namespace analysis {
 
                 // Test sequence
                 auto testseq = loop->getTestSeq() ;
-                auto after_test = analyze_sequencestmt<FlowInfo,ExprInfo> (
+                auto after_test = analyze_sequencestmt<FlowInfo,ExprInfo,d> (
                         testseq,
                         context,
                         after_init) ;
 
                 // Run on the body loop
                 auto body = loop->getBodySeq() ;
-                auto after_body = analyze_sequencestmt<FlowInfo,ExprInfo> (
+                auto after_body = analyze_sequencestmt<FlowInfo,ExprInfo,d> (
                         body,
                         context,
                         after_test) ;
@@ -124,7 +154,7 @@ namespace mcvm { namespace analysis {
                 // Incrementation seq
                 auto incrseq = loop->getIncrSeq() ;
 
-                auto after_incr = analyze_sequencestmt<FlowInfo,ExprInfo> (
+                auto after_incr = analyze_sequencestmt<FlowInfo,ExprInfo,d> (
                         incrseq,
                         context,
                         after_body) ;
@@ -138,14 +168,8 @@ namespace mcvm { namespace analysis {
         }
     
             
-    template <typename FlowInfo>
-        FlowInfo analyze_assignstmt (
-                const AssignStmt* seq,
-                AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in
-                );
     
-    template <typename FlowInfo, typename ExprInfo>
+    template <typename FlowInfo, typename ExprInfo, Direction d>
         FlowInfo analyze_sequencestmt (
                 const StmtSequence* seq,
                 AnalyzerContext<FlowInfo>& context,
@@ -153,7 +177,13 @@ namespace mcvm { namespace analysis {
                 ){
             
             auto current = in ;
-            for (auto st: seq->getStatements() ) {
+            
+            auto stmtsequence = seq->getStatements() ;
+
+            if (d == Direction::Backward) 
+                std::reverse (std::begin(stmtsequence) , std::end(stmtsequence)) ;
+
+            for (auto st: stmtsequence) {
                 std::cout << st->toString() << std::endl ;
                 switch (st->getStmtType()) {
                     case Statement::ASSIGN:
@@ -169,12 +199,12 @@ namespace mcvm { namespace analysis {
                             auto stmt_if = stmt->getIfBlock() ;
                             auto stmt_else = stmt->getElseBlock() ;
                             auto info_if =
-                                analyze_sequencestmt<FlowInfo,ExprInfo> (
+                                analyze_sequencestmt<FlowInfo,ExprInfo,d> (
                                         static_cast<StmtSequence*>(stmt_if),
                                         context,
                                         current) ;
                             auto info_else =
-                                analyze_sequencestmt<FlowInfo,ExprInfo> (
+                                analyze_sequencestmt<FlowInfo,ExprInfo,d> (
                                         static_cast<StmtSequence*>(stmt_else),
                                         context,
                                         current) ;
@@ -183,7 +213,7 @@ namespace mcvm { namespace analysis {
                         }
                         break;
                     case Statement::LOOP:
-                        current = analyze_loopstmt<FlowInfo,ExprInfo>(
+                        current = analyze_loopstmt<FlowInfo,ExprInfo,d>(
                                 static_cast<LoopStmt*>(st),
                                 context,
                                 current) ;
@@ -221,11 +251,10 @@ namespace mcvm { namespace analysis {
 
     template <typename FlowInfo, typename ExprInfo, typename Info>
         AnalyzerContext<FlowInfo> analyze(
-                AnalyzerContext<FlowInfo>& context,
                 ProgFunction* function,
-                const std::vector<Info>& params
-                )
-        {
+                const std::vector<Info>& params ) {
+            
+            AnalyzerContext<FlowInfo> context ;
             // Construct the correct input flowinfo
             auto fun_params = function->getInParams() ;
             
@@ -248,7 +277,8 @@ namespace mcvm { namespace analysis {
             return analyze(context,function,i) ;
         }
 
-    template <typename FlowInfo, typename ExprInfo>
+
+    template <typename FlowInfo, typename ExprInfo, Direction d>
         AnalyzerContext<FlowInfo> analyze_function(
                 AnalyzerContext<FlowInfo>& context,
                 ProgFunction* function,
@@ -259,7 +289,7 @@ namespace mcvm { namespace analysis {
             context.local_env_ = ProgFunction::getLocalEnv(function);
             context.recursive_.insert(function) ;
             context.recursion_ = false ;
-            auto end_info = analyze_sequencestmt<FlowInfo,ExprInfo>(body,context,entry) ;
+            auto end_info = analyze_sequencestmt<FlowInfo,ExprInfo,d>(body,context,entry) ;
             context.return_points_.push_back(end_info) ;
             std::cout << "return size" << context.return_points_.size() << std::endl ;
             
@@ -285,7 +315,7 @@ namespace mcvm { namespace analysis {
             FlowInfo new_entry ;
             FlowInfo new_end_info ;
             do {
-                new_end_info = analyze_sequencestmt<FlowInfo,ExprInfo>(body,context,entry) ;
+                new_end_info = analyze_sequencestmt<FlowInfo,ExprInfo,d>(body,context,entry) ;
             } while (context.returns_ != new_context.returns_ ) ;
             return new_context ;
         }
@@ -303,13 +333,13 @@ namespace mcvm { namespace analysis {
                 case Expression::ExprType::MATRIX:
                     return analyze_expr<MatrixExpr,FlowInfo,ExprInfo> ((MatrixExpr*)expr,context,in ) ;
                 case Expression::ExprType::FN_HANDLE:
-                    //return analyze_expr<FnHandleExpr,FlowInfo,ExprInfo> ((FnHandleExpr*)expr,context,in ) ;
+                    return analyze_expr<FnHandleExpr,FlowInfo,ExprInfo> ((FnHandleExpr*)expr,context,in ) ;
                 case Expression::ExprType::LAMBDA:
                     return analyze_expr<LambdaExpr,FlowInfo,ExprInfo> ((LambdaExpr*)expr,context,in ) ;
                 case Expression::ExprType::CELLARRAY:
                     return analyze_expr<CellArrayExpr,FlowInfo,ExprInfo> ((CellArrayExpr*)expr,context,in ) ;
                 case Expression::ExprType::END:
-                    //return analyze_expr<EndExpr,FlowInfo,ExprInfo> ((EndExpr*)expr,context,in ) ;
+                    return analyze_expr<EndExpr,FlowInfo,ExprInfo> ((EndExpr*)expr,context,in ) ;
                 case Expression::ExprType::RANGE:
                     return analyze_expr<RangeExpr,FlowInfo,ExprInfo> ((RangeExpr*)expr,context,in ) ;
                 case Expression::ExprType::STR_CONST:
@@ -329,16 +359,8 @@ namespace mcvm { namespace analysis {
                 case Expression::ExprType::DOT:
                     return analyze_expr<DotExpr,FlowInfo,ExprInfo> ((DotExpr*)expr,context,in ) ;
                 case Expression::ExprType::SYMBOL:
-                    {
-                        auto s = (SymbolExpr*)expr;
-                        auto itr = in.find(s) ;
-                        if (itr != std::end(in)) {
-                            return {itr->second};
-                        }
-                     //   return analyze_expr<SymbolExpr,FlowInfo,ExprInfo> ((SymbolExpr*)expr,context,in ) ;
-                    }
+                      return analyze_expr<SymbolExpr,FlowInfo,ExprInfo> ((SymbolExpr*)expr,context,in ) ;
             }
-            return {};
         }
 
 }}
