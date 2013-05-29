@@ -37,12 +37,16 @@ namespace mcvm { namespace analysis {
             FlowInfo returns_ ; 
             std::stack<FlowInfo> recursive_returns_ ;
 
-            std::unordered_map<IIRNode*,FlowInfo> data_ ;
+            std::unordered_map<const IIRNode*,FlowInfo> data_ ;
             std::unordered_set<ProgFunction*> recursive_ ;
             bool recursion_ ;
             Environment* local_env_ ;
         };
     
+
+    template <typename FlowInfo>
+    using FlowMap = std::unordered_map<const IIRNode*, FlowInfo> ;
+
     /************************************
      *  Prototypes
      ************************************/
@@ -65,7 +69,7 @@ namespace mcvm { namespace analysis {
             return ExprInfo{} ;
         }
 
-    template <typename FlowInfo, typename ExprInfo, Direction d>
+    template <typename FlowInfo, Direction d>
         FlowInfo analyze_sequencestmt (
                 const StmtSequence* stmt,
                 AnalyzerContext<FlowInfo>& context,
@@ -77,14 +81,16 @@ namespace mcvm { namespace analysis {
                 AnalyzerContext<FlowInfo>& context,
                 const FlowInfo& in);
     
+/*
     template <typename FlowInfo, typename ExprInfo, Direction d>
         AnalyzerContext<FlowInfo> analyze_function (
                 AnalyzerContext<FlowInfo>& context,
                 ProgFunction* function,
                 const FlowInfo& entry);
+                */
         
     template <typename FlowInfo>
-        AnalyzerContext<FlowInfo> analyze(ProgFunction* function);
+        FlowMap<FlowInfo> analyze(ProgFunction* function);
     
     template <typename FlowInfo>
         AnalyzerContext<FlowInfo> analyze(
@@ -100,7 +106,10 @@ namespace mcvm { namespace analysis {
                 const std::vector<FlowInfo>& infos
                 ) 
         {
-            auto merged = * infos.begin() ;
+            if (infos.empty())
+                return FlowInfo{} ;
+
+            auto merged = infos.front() ;
             for (auto info : infos) {
                 merged = merge(info,merged) ;
             }
@@ -108,17 +117,15 @@ namespace mcvm { namespace analysis {
         }
     
     //DISCLAIMER: we suppose that everything is a symbolexpr
-    template <typename FlowInfo, typename ExprInfo, typename Info>
+    template <typename FlowInfo, typename ExprInfo>
         ExprInfo compute_returned_vector (
-                const std::vector<FlowInfo>& infos,
-                const std::function<FlowInfo(FlowInfo&,FlowInfo&)>& merge,
+                const FlowInfo& info,
                 const ProgFunction* function ) {
             auto params = function->getOutParams() ;
             ExprInfo ret ;
-            auto l = merge_list(infos,merge) ;
             for (auto param: params) {
-                auto itr = l.find (param) ;
-                if (itr != std::end(l)) {
+                auto itr = info.find (param) ;
+                if (itr != std::end(info)) {
                     ret.push_back(itr->second) ;
                 }
             }
@@ -285,18 +292,21 @@ namespace mcvm { namespace analysis {
         }
 
 
-    template <typename FlowInfo, typename ExprInfo, Direction d>
-        AnalyzerContext<FlowInfo> analyze_function(
+    template <typename FlowInfo, 
+             typename ExprInfo, 
+             Direction d, 
+             typename... Dependencies>
+    FlowMap<FlowInfo> analyze_function(
                 AnalyzerContext<FlowInfo>& context,
                 ProgFunction* function,
-                const FlowInfo& entry
-                )
-        {
+                const FlowInfo& entry,
+                const Dependencies&... deps
+                ) {
             auto body = function->getCurrentBody() ;
             context.local_env_ = ProgFunction::getLocalEnv(function);
             context.recursive_.insert(function) ;
-            context.recursion_ = false ;
             auto end_info = analyze_sequencestmt<FlowInfo,ExprInfo,d>(body,context,entry) ;
+            
             context.return_points_.push_back(end_info) ;
             std::cout << "return size" << context.return_points_.size() << std::endl ;
             
@@ -305,12 +315,12 @@ namespace mcvm { namespace analysis {
                 merge_list(
                         context.return_points_);
             
-            std::cout << "FIN " << context.returns_ << std::endl ;
+            std::cout << "Returns ====== " << context.returns_ << std::endl << "======" << std::endl ;
 
             if (!context.recursion_) {
                 std::cout << "BYE" << std::endl ;
                 // no recursion, analyze is finished 
-                return context ;
+                return context.data_ ;
             }
 
             // The analysis is not over, we need to find a fixpoint
@@ -324,7 +334,7 @@ namespace mcvm { namespace analysis {
             do {
                 new_end_info = analyze_sequencestmt<FlowInfo,ExprInfo,d>(body,context,entry) ;
             } while (context.returns_ != new_context.returns_ ) ;
-            return new_context ;
+            return new_context.data_ ;
         }
 
 
@@ -334,7 +344,7 @@ namespace mcvm { namespace analysis {
                 AnalyzerContext<FlowInfo>& context,
                 const FlowInfo& in)
         {
-            std::cout << "dispatch" << std::endl ;
+            //std::cout << "dispatch" << std::endl ;
             
             switch (expr->getExprType()) {
                 case Expression::ExprType::MATRIX:

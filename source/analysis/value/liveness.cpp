@@ -28,10 +28,11 @@ namespace mcvm { namespace analysis {
         }
 
     template <>
-        AnalyzerContext<LivenessInfo> analyze(ProgFunction* function) {
+        FlowMap<L> analyze(ProgFunction* function) {
             AnalyzerContext<LivenessInfo> context ;
             LivenessInfo entry ;
-            return analyze_function<LivenessInfo,LivenessInfo,Direction::Backward> (context,function,entry) ;
+            return analyze_function<LivenessInfo,LivenessInfo,Direction::Backward> 
+                (context,function,entry) ;
         }
     
     template <>
@@ -51,7 +52,8 @@ namespace mcvm { namespace analysis {
                     context,
                     in);
             //auto lhs = assign->getLeftExprs() ;
-            LivenessInfo kill ;
+            auto defs = assign->getSymbolDefs() ;
+            LivenessInfo kill ( defs.begin() , defs.end() ) ;
             LivenessInfo lhs ;
             auto gen = lhs + rhs ;
             return (in - kill) + gen;

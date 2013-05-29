@@ -111,6 +111,12 @@ void Lattice::merge (const Lattice& old) {
             */
 
 
+    // If either of them is not a structarray, don't do anything
+    if ( type_ != Lattice::mclass::STRUCTARRAY ||
+            old.type_ != Lattice::mclass::STRUCTARRAY ) {
+        return ;
+    }
+
 
     // Merge the size first
     if (!old.size_.empty()) {
@@ -137,12 +143,6 @@ void Lattice::merge (const Lattice& old) {
         }
     } else {
         size_.clear();
-    }
-
-    // If either ot them is not a structarray, don't do anything
-    if ( type_ != Lattice::mclass::STRUCTARRAY ||
-            old.type_ != Lattice::mclass::STRUCTARRAY ) {
-        return ;
     }
 
     // Then merge the fields
@@ -193,9 +193,14 @@ bool is_composite(const Lattice& l) {
       return {ret} ;
     }
     
-    std::vector<Lattice> arithm_op (const Lattice&, const Lattice&) {
+    std::vector<Lattice> arithm_op (const Lattice& a , const Lattice& b ) {
+        return {a} ;
       Lattice ret ;
       ret.type_ = Lattice::mclass::DOUBLE;
+      
+      if (a.integer_ && b.integer_)
+          ret.integer_ = true ;
+
       return {ret} ;
     }
     

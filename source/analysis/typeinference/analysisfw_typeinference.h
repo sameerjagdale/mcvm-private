@@ -27,6 +27,11 @@ namespace mcvm { namespace analysis {
             const std::vector<Expression*>& caller,
             const std::vector<SymbolExpr*>& callee
             );
+
+    TypeFlowInfo analyze_function_without_flowmap(
+            AnalyzerContext<TypeFlowInfo>&,
+            const ProgFunction* progfunction,
+            const TypeFlowInfo& input_env) ; 
     
 }}
 

@@ -11,17 +11,26 @@ namespace mcvm { namespace analysis {
     using F = TypeFlowInfo ;
 
     template <>
-        AnalyzerContext<F> analyze(ProgFunction* function) {
+        FlowMap<F> analyze(ProgFunction* function) {
             AnalyzerContext<F> context ;
             F entry ;
             return analyze_function<F,E,Direction::Forward> (context,function,entry) ;
         }
     
+    TypeFlowInfo analyze_function_without_flowmap(
+            AnalyzerContext<TypeFlowInfo>&,
+            const ProgFunction* progfunction,
+            const TypeFlowInfo& input_env) {
+    }
+
     template <>
     TypeFlowInfo merge(
             const TypeFlowInfo& a,
             const TypeFlowInfo& b) {
         Info ret ;
+        
+        //std::cout << "Debut merge with " << a << "fdfsdf" ;
+        //std::cout << "Debut merge with " << b << "fdfsdf" ;
         for (auto& var : a) {
             auto itr = b.find(var.first) ;
             if (itr != std::end(b)) {
@@ -32,6 +41,7 @@ namespace mcvm { namespace analysis {
                 }
             }
         }
+        //std::cout << "fin de merge" << ret << "fdfsdf" ;
         return ret ;
     }
 
@@ -129,7 +139,11 @@ namespace mcvm { namespace analysis {
         auto leftexpr = expr->getSymExpr() ;
         auto left = analyze_expr<TypeFlowInfo,TypeExprInfo> 
             (leftexpr,context,in);
-        auto v = * left.begin() ;
+        
+        if (left.size() != 1)
+            return {};
+
+        auto v = left.front() ;
 
         if (v.type_ == Lattice::mclass::FNHANDLE) {
             v = * v.fnhandle_ ;
@@ -146,31 +160,19 @@ namespace mcvm { namespace analysis {
 
                     if (itr != std::end(rec)) {
                         context.recursion_ = true ;
-                        return {} ;
+
+                        auto returned = merge_list (context.return_points_) ;
                         
-                        /*
-                        merge_list (
-                                context.return_points_,
-                                analyzer.merge_) ;
-                        
-                        if (!context.return_points) {
-                            // first time we see the recursion
+                        if (returned.empty()) {
                             std::cout << "return bottom" << std::endl ;
                             return {Lattice(Lattice::mclass::BOTTOM) };
                         } else {
-                            // returns a vector
-                            auto ret = 
-                                compute_returned_vector<Info,ExprInfo,Lattice>(
-                                        context.return_points_,
-                                        analyzer.merge_,
-                                        progfunction);
-                            std::cout << "return partial " << std::endl ;
-                            for (auto a:ret) {
-                                std::cout << a.toString() << std::endl ;
-                            }
+                            auto ret = compute_returned_vector<TypeFlowInfo,TypeExprInfo>(
+                                    returned,
+                                    progfunction) ;
                             return ret ;
                         }
-                        */
+                        
                     } else { // Not recursive, analyze it
                         
                         // Construct the param args
@@ -180,18 +182,17 @@ namespace mcvm { namespace analysis {
                                 expr->getArguments(),
                                 progfunction->getInParams());
                         
-                        //Analyze it
-                        AnalyzerContext<TypeFlowInfo> c ;
-                        //c = analyze_function<TypeFlowInfo> (c,progfunction,input_env) ; 
+                        auto c = analyze_function_without_flowmap 
+                            (context,progfunction,input_env) ; 
+                        
+                        return {} ;
 
                         //Get the output types
-                        /*
                         auto ret = 
-                            compute_returned_vector<Info,ExprInfo,Lattice>(
-                                    c.return_points_,
+                            compute_returned_vector<Info,TypeExprInfo>(
+                                    c,
                                     progfunction);
                         return ret ;
-                        */
                     }
                 }
                 break;
@@ -374,6 +375,10 @@ namespace mcvm { namespace analysis {
      auto l = left.front() ;
      auto r = right.front() ;
      
+    if (l.type_ == Lattice::mclass::BOTTOM ||
+        r.type_ == Lattice::mclass::BOTTOM )
+        return {Lattice::mclass::BOTTOM} ;
+            
      switch (expr->getOperator())
 	{
 		// Array arithmetic operation (int preserving)
@@ -433,10 +438,10 @@ namespace mcvm { namespace analysis {
                 return l ;
             case Expression::PARAM:
                 {
-                //auto param = (ParamExpr*)expr ;
+                auto param = (ParamExpr*)expr ;
                 auto lattice = l ;
                 lattice.size_.push_back(45) ;
-                return lattice ;
+                return recursive_assign(param->getExpr(),lattice) ;
                 }
             case Expression::DOT:
                 {
