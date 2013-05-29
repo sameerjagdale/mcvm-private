@@ -19,6 +19,19 @@
 class ParamExpr;
 class DotExpr;
 
+template <typename FlowInfo>
+using FlowMap = std::unordered_map<const IIRNode*, FlowInfo> ;
+
+template <typename I>
+std::ostream& operator<<(
+        std::ostream& strm,
+        const FlowMap<I>& flow) {
+    for (auto& f: flow) {
+        strm << f.first->toString() << f.second << std::endl ;
+    }
+    return strm ;
+}
+
 namespace mcvm { namespace analysis {
 
     /************************************
@@ -39,13 +52,10 @@ namespace mcvm { namespace analysis {
 
             std::unordered_map<const IIRNode*,FlowInfo> data_ ;
             std::unordered_set<ProgFunction*> recursive_ ;
-            bool recursion_ ;
+            bool recursion_ = false ;
             Environment* local_env_ ;
         };
     
-
-    template <typename FlowInfo>
-    using FlowMap = std::unordered_map<const IIRNode*, FlowInfo> ;
 
     /************************************
      *  Prototypes
@@ -69,17 +79,23 @@ namespace mcvm { namespace analysis {
             return ExprInfo{} ;
         }
 
-    template <typename FlowInfo, Direction d>
+    template <Direction d,
+             typename FlowInfo, 
+             typename... Dependencies>
         FlowInfo analyze_sequencestmt (
-                const StmtSequence* stmt,
-                AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in);
+                const StmtSequence*,
+                AnalyzerContext<FlowInfo>&,
+                const FlowInfo&,
+                const Dependencies&...);
     
-    template <typename FlowInfo>
+    template <typename FlowInfo,
+             typename... Dependencies>
         FlowInfo analyze_assignstmt (
                 const AssignStmt* seq,
                 AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in);
+                const FlowInfo& in,
+                const Dependencies&... deps
+                );
     
 /*
     template <typename FlowInfo, typename ExprInfo, Direction d>
@@ -132,44 +148,52 @@ namespace mcvm { namespace analysis {
             return ret ;
         }
 
-    template <typename FlowInfo, typename ExprInfo, Direction d>
+    template <Direction d,
+             typename FlowInfo,
+             typename... Dependencies>
+
         FlowInfo analyze_loopstmt (
                 const LoopStmt* loop,
                 AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in
+                const FlowInfo& in,
+                const Dependencies&... deps
                 ){
             
             auto current = in ;
             for (;;) {
                 // Handle the init seq
                 auto initseq = loop->getInitSeq() ;
-                auto after_init = analyze_sequencestmt<FlowInfo,ExprInfo,d> (
+                auto after_init = analyze_sequencestmt<d> (
                         initseq,
                         context,
-                        in) ;
+                        in,
+                        deps...) ;
 
 
                 // Test sequence
                 auto testseq = loop->getTestSeq() ;
-                auto after_test = analyze_sequencestmt<FlowInfo,ExprInfo,d> (
+                auto after_test = analyze_sequencestmt<d> (
                         testseq,
                         context,
-                        after_init) ;
+                        after_init,
+                        deps...) ;
 
                 // Run on the body loop
                 auto body = loop->getBodySeq() ;
-                auto after_body = analyze_sequencestmt<FlowInfo,ExprInfo,d> (
+                auto after_body = analyze_sequencestmt<d> (
                         body,
                         context,
-                        after_test) ;
+                        after_test,
+                        deps...) ;
 
                 // Incrementation seq
                 auto incrseq = loop->getIncrSeq() ;
 
-                auto after_incr = analyze_sequencestmt<FlowInfo,ExprInfo,d> (
+                auto after_incr = analyze_sequencestmt<d> (
                         incrseq,
                         context,
-                        after_body) ;
+                        after_body,
+                        deps...) ;
 
                 if (current == after_incr) {
                     return after_incr ;
@@ -181,30 +205,36 @@ namespace mcvm { namespace analysis {
     
             
     
-    template <typename FlowInfo, typename ExprInfo, Direction d>
+    template <Direction d,
+             typename FlowInfo, 
+             typename... Dependencies>
         FlowInfo analyze_sequencestmt (
                 const StmtSequence* seq,
                 AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in
+                const FlowInfo& in,
+                const Dependencies&... deps
                 ){
             
             auto current = in ;
             
             auto stmtsequence = seq->getStatements() ;
 
-            asm("#matthieu") ;
+            asm("#backward_direction") ;
             if (d == Direction::Backward) 
                 std::reverse (std::begin(stmtsequence) , std::end(stmtsequence)) ;
 
-            asm("#finmatthieu") ;
+            asm("#finbackward_direction") ;
             for (auto st: stmtsequence) {
                 std::cout << st->toString() << std::endl ;
                 switch (st->getStmtType()) {
                     case Statement::ASSIGN:
-                        current = analyze_assignstmt<FlowInfo>(
+                        asm("#assigncall");
+                        current = analyze_assignstmt(
                                 static_cast<AssignStmt*>(st),
                                 context,
-                                current);
+                                current,
+                                deps...);
+                        asm("#endassigncall");
                         break;
 
                     case Statement::IF_ELSE:
@@ -213,24 +243,27 @@ namespace mcvm { namespace analysis {
                             auto stmt_if = stmt->getIfBlock() ;
                             auto stmt_else = stmt->getElseBlock() ;
                             auto info_if =
-                                analyze_sequencestmt<FlowInfo,ExprInfo,d> (
+                                analyze_sequencestmt<d>(
                                         static_cast<StmtSequence*>(stmt_if),
                                         context,
-                                        current) ;
+                                        current,
+                                        deps...) ;
                             auto info_else =
-                                analyze_sequencestmt<FlowInfo,ExprInfo,d> (
+                                analyze_sequencestmt<d>(
                                         static_cast<StmtSequence*>(stmt_else),
                                         context,
-                                        current) ;
+                                        current,
+                                        deps...) ;
 
                             current = merge(info_if,info_else) ;
                         }
                         break;
                     case Statement::LOOP:
-                        current = analyze_loopstmt<FlowInfo,ExprInfo,d>(
+                        current = analyze_loopstmt<d>(
                                 static_cast<LoopStmt*>(st),
                                 context,
-                                current) ;
+                                current,
+                                deps...) ;
                         break;
 
                     case Statement::BREAK:
@@ -263,7 +296,7 @@ namespace mcvm { namespace analysis {
             return current ;
         }
 
-    template <typename FlowInfo, typename ExprInfo, typename Info>
+    template <typename FlowInfo, typename Info>
         AnalyzerContext<FlowInfo> analyze(
                 ProgFunction* function,
                 const std::vector<Info>& params ) {
@@ -293,7 +326,6 @@ namespace mcvm { namespace analysis {
 
 
     template <typename FlowInfo, 
-             typename ExprInfo, 
              Direction d, 
              typename... Dependencies>
     FlowMap<FlowInfo> analyze_function(
@@ -305,7 +337,8 @@ namespace mcvm { namespace analysis {
             auto body = function->getCurrentBody() ;
             context.local_env_ = ProgFunction::getLocalEnv(function);
             context.recursive_.insert(function) ;
-            auto end_info = analyze_sequencestmt<FlowInfo,ExprInfo,d>(body,context,entry) ;
+            auto end_info = analyze_sequencestmt<d>
+                (body,context,entry,deps...) ;
             
             context.return_points_.push_back(end_info) ;
             std::cout << "return size" << context.return_points_.size() << std::endl ;
@@ -332,7 +365,8 @@ namespace mcvm { namespace analysis {
             FlowInfo new_entry ;
             FlowInfo new_end_info ;
             do {
-                new_end_info = analyze_sequencestmt<FlowInfo,ExprInfo,d>(body,context,entry) ;
+                new_end_info = analyze_sequencestmt<d>
+                    (body,context,entry,deps...) ;
             } while (context.returns_ != new_context.returns_ ) ;
             return new_context.data_ ;
         }

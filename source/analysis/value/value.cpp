@@ -11,7 +11,7 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<I> context ;
             I entry ;
             auto l = analyze<LivenessInfo>(function) ;
-            return analyze_function<I,I,Direction::Forward,decltype(l)> 
+            return analyze_function<I,Direction::Forward,decltype(l)> 
                 (context,function,entry,l) ;
         }
 
@@ -26,11 +26,15 @@ namespace mcvm { namespace analysis {
         I analyze_assignstmt (
                 const AssignStmt* assign,
                 AnalyzerContext<I>& context,
-                const I& in) {
+                const I& in,
+                const FlowMap<LivenessInfo>& live) {
+            return in ;
         }
 
 }}
 
 std::ostream& operator<<(
         std::ostream &,
-        const mcvm::analysis::ValueInfo& ) { } 
+        const mcvm::analysis::ValueInfo& ) {
+assert(false) ;
+} 

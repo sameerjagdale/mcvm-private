@@ -14,7 +14,7 @@ namespace mcvm { namespace analysis {
         FlowMap<F> analyze(ProgFunction* function) {
             AnalyzerContext<F> context ;
             F entry ;
-            return analyze_function<F,E,Direction::Forward> (context,function,entry) ;
+            return analyze_function<F,Direction::Forward> (context,function,entry) ;
         }
     
     TypeFlowInfo analyze_function_without_flowmap(
@@ -151,6 +151,7 @@ namespace mcvm { namespace analysis {
 
         switch (v.type_) {
             case Lattice::mclass::LIBFUNCTION:
+                return {};
             case Lattice::mclass::PROGFUNCTION:
                 {
                     auto function = v.function_ ;

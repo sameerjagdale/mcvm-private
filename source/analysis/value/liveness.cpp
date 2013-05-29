@@ -31,7 +31,7 @@ namespace mcvm { namespace analysis {
         FlowMap<L> analyze(ProgFunction* function) {
             AnalyzerContext<LivenessInfo> context ;
             LivenessInfo entry ;
-            return analyze_function<LivenessInfo,LivenessInfo,Direction::Backward> 
+            return analyze_function<LivenessInfo,Direction::Backward> 
                 (context,function,entry) ;
         }
     
@@ -42,8 +42,7 @@ namespace mcvm { namespace analysis {
             return LivenessInfo{} ;
         }
     
-    template <>
-        LivenessInfo analyze_assignstmt (
+    template <> LivenessInfo analyze_assignstmt (
                 const AssignStmt* assign,
                 AnalyzerContext<LivenessInfo>& context,
                 const LivenessInfo& in) {
@@ -80,12 +79,30 @@ namespace mcvm { namespace analysis {
                     in);
         }
 
+    template <>
+        LivenessInfo analyze_expr (
+                const ParamExpr* param,
+                AnalyzerContext<LivenessInfo>& context,
+                const LivenessInfo& in) {
+            LivenessInfo gen ;
+            auto left = param->getExpr() ;
+            if (left->getExprType() == Expression::SYMBOL) {
+                auto symbol = static_cast<SymbolExpr*>(left);
+                std::set<std::string> function_to_watch { "ones", "zeros" , "eye" } ;
+                auto itr = function_to_watch.find(symbol->getSymName()) ;
+                if (itr != std::end(function_to_watch)) {
+                    for (auto& p : param->getArguments()){
+                        gen.insert((SymbolExpr*)p) ;
+                    }
+                }
+            }
+            return (in + gen) ;
+        }
 }}
 
 std::ostream& operator<<(
         std::ostream &strm,
         const mcvm::analysis::LivenessInfo& liveset) {
-
     for (auto& symbol : liveset) {
         strm << symbol->toString() << std::endl ;
     }
