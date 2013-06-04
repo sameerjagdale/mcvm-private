@@ -1323,10 +1323,6 @@ Expression* CodeParser::parseParamExpr(const XML::Element* pElement)
 	// Parse the symbol expression
 	Expression* pSymExpr = parseExpression(pElement->getChildElement(0));
 
-	// If the symbol expression is not a symbol, throw an exception
-	if (pSymExpr->getExprType() != Expression::SYMBOL)
-		throw XML::ParseError("Expected symbol expression", pElement->getTextPos());
-
 	// Compute the number of arguments
 	size_t numArgs = pElement->getNumChildren() - 1;
 
@@ -1342,7 +1338,7 @@ Expression* CodeParser::parseParamExpr(const XML::Element* pElement)
 
 	// Create and return the new parameterized expression
 	return new ParamExpr(
-		(SymbolExpr*)pSymExpr,
+		pSymExpr,
 		arguments
 	);
 }

@@ -11,6 +11,11 @@ namespace mcvm { namespace analysis {
     using F = TypeFlowInfo ;
 
     template <>
+        TypeExprInfo top() {
+            return {} ;
+        }
+
+    template <>
         FlowMap<F> analyze(ProgFunction* function) {
             AnalyzerContext<F> context ;
             F entry ;
@@ -21,6 +26,7 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<TypeFlowInfo>&,
             const ProgFunction* progfunction,
             const TypeFlowInfo& input_env) {
+        return input_env;
     }
 
     template <>

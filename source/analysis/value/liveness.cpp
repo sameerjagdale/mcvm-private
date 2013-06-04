@@ -10,6 +10,11 @@ namespace mcvm { namespace analysis {
     using L = LivenessInfo ;
     
     template <>
+        L top() {
+            return L{} ;
+        }
+
+    template <>
         L operator+ (const L& left,const L& right) {
             L ret = left ;
            for (auto& r : right) {

@@ -334,6 +334,7 @@ Revisions and bug fixes:
 */
 inline int Client::createHBThread()
 {	
+    return NULL ;
 	// create an heartbeat thread
 	return pthread_create(&hb, 0, &heartbeat, 0);
 }

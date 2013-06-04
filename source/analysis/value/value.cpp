@@ -19,7 +19,6 @@ namespace mcvm { namespace analysis {
         I merge (
                 const I& a,
                 const I& b) {
-            return I{} ;
         }
 
     template <>
@@ -34,7 +33,11 @@ namespace mcvm { namespace analysis {
 }}
 
 std::ostream& operator<<(
-        std::ostream &,
-        const mcvm::analysis::ValueInfo& ) {
-assert(false) ;
+        std::ostream& strm,
+        const mcvm::analysis::ValueInfo& v) {
+    for (auto& itr:v)
+        strm << itr.first->toString() << itr.second->toString() << std::endl ;
+    return strm;
+
+    
 } 

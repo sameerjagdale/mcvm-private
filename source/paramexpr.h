@@ -39,7 +39,7 @@ class ParamExpr : public Expression
 public:
 	
 	// Constructor
-	ParamExpr(SymbolExpr* symExpr, const ExprVector& arguments)
+	ParamExpr(Expression* symExpr, const ExprVector& arguments)
 	: m_pSymbolExpr(symExpr), m_arguments(arguments)
 	{ m_exprType = PARAM; }
 	
@@ -55,16 +55,16 @@ public:
 	// Method to obtain a string representation of this node
 	virtual std::string toString() const;
 	
-	// Accessor to get the symbol expression
-	SymbolExpr* getSymExpr() const { return m_pSymbolExpr; }
-	
+	SymbolExpr* getSymExpr() const ;
+        Expression* getExpr() const  ;
+        
 	// Accessor to get the arguments
 	const ExprVector& getArguments() const { return m_arguments; }
 	
 protected:
 	
 	// Symbol expression
-	SymbolExpr* m_pSymbolExpr;
+	Expression* m_pSymbolExpr;
 	
 	// Function arguments
 	ExprVector m_arguments;

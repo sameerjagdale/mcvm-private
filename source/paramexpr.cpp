@@ -113,11 +113,8 @@ void ParamExpr::replaceSubExpr(size_t index, Expression* pNewExpr)
 	// If the original expression is the symbol expression
 	if (index == 0)
 	{
-		// Ensure the new expression is a symbol
-		assert (pNewExpr->getExprType() == Expression::SYMBOL);
-		
 		// Replace the symbol expression
-		m_pSymbolExpr = (SymbolExpr*)pNewExpr;
+		m_pSymbolExpr = pNewExpr;
 		return;
 	}
 
@@ -129,4 +126,13 @@ void ParamExpr::replaceSubExpr(size_t index, Expression* pNewExpr)
 	
 	// Replace the corresponding argument
 	m_arguments[index] = pNewExpr;	
+}
+
+SymbolExpr* ParamExpr::getSymExpr() const {
+    //assert (m_pSymbolExpr->getExprType() == Expression::SYMBOL) ;
+    return (SymbolExpr*)m_pSymbolExpr ;
+}
+
+Expression* ParamExpr::getExpr() const  {
+    return m_pSymbolExpr ;
 }

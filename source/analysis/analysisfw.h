@@ -66,17 +66,23 @@ namespace mcvm { namespace analysis {
     template <typename FlowInfo>
         FlowInfo operator- (const FlowInfo& left,const FlowInfo& right) ;
    
+    template <typename I>
+        I top() ;
+
     template <typename FlowInfo>
     FlowInfo merge(
             const FlowInfo&,
-            const FlowInfo&) ;
+            const FlowInfo&) {
+        return top<FlowInfo>();
+    }
     
+
     template <typename Expr, typename FlowInfo, typename ExprInfo>
         ExprInfo analyze_expr (
                 const Expr* expr,
                 AnalyzerContext<FlowInfo>& context,
                 const FlowInfo& in) { 
-            return ExprInfo{} ;
+            return top<ExprInfo>() ;
         }
 
     template <Direction d,
@@ -219,7 +225,7 @@ namespace mcvm { namespace analysis {
             
             auto stmtsequence = seq->getStatements() ;
 
-            asm("#backward_direction") ;
+            asm("#backward_direction":::) ;
             if (d == Direction::Backward) 
                 std::reverse (std::begin(stmtsequence) , std::end(stmtsequence)) ;
 
@@ -348,10 +354,10 @@ namespace mcvm { namespace analysis {
                 merge_list(
                         context.return_points_);
             
-            std::cout << "Returns ====== " << context.returns_ << std::endl << "======" << std::endl ;
+            //std::cout << "Returns ====== " << context.returns_ << std::endl << "======" << std::endl ;
 
             if (!context.recursion_) {
-                std::cout << "BYE" << std::endl ;
+               // std::cout << "BYE" << std::endl ;
                 // no recursion, analyze is finished 
                 return context.data_ ;
             }

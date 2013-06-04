@@ -49,6 +49,7 @@
 #include "transform_split.h"
 
 #include <analysis/typeinference/analysisfw_typeinference.h>
+#include <analysis/value/value.h>
 
 // Config variable to enable/disable the JIT compiler
 ConfigVar JITCompiler::s_jitEnableVar("jit_enable", ConfigVar::BOOL, "false");
@@ -920,10 +921,8 @@ void JITCompiler::compileFunction(ProgFunction* pFunction, const TypeSetString& 
 
 #if 1
         //Construt the input args
-        mcvm::analysis::TypeFlowInfo i ;
-        mcvm::analysis::AnalyzerContext<mcvm::analysis::TypeFlowInfo> context ;
-        auto result = mcvm::analysis::analyze_function<mcvm::analysis::TypeFlowInfo,mcvm::analysis::TypeExprInfo>(context,pFunction,i) ;
-        std::cout << result.data_ << std::endl;
+        auto result = mcvm::analysis::analyze <mcvm::analysis::TypeFlowInfo>(pFunction) ;
+        auto value = mcvm::analysis::analyze <mcvm::analysis::ValueInfo>(pFunction) ;
         exit(0) ;
 #endif
         
