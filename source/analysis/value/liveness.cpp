@@ -44,17 +44,17 @@ namespace mcvm { namespace analysis {
         LivenessInfo merge (
                 const LivenessInfo& a,
                 const LivenessInfo& b) {
-            return LivenessInfo{} ;
+            return a + b ;
         }
     
     template <> LivenessInfo analyze_assignstmt (
                 const AssignStmt* assign,
                 AnalyzerContext<LivenessInfo>& context,
                 const LivenessInfo& in) {
-            auto rhs = analyze_expr<LivenessInfo,LivenessInfo> (
-                    assign->getRightExpr(),
-                    context,
-                    in);
+            auto rhs = analyze_expr<LivenessInfo>(
+                 assign->getRightExpr(),
+                 context,
+                 in);
             //auto lhs = assign->getLeftExprs() ;
             auto defs = assign->getSymbolDefs() ;
             LivenessInfo kill ( defs.begin() , defs.end() ) ;
@@ -78,7 +78,7 @@ namespace mcvm { namespace analysis {
                 const DotExpr* dot,
                 AnalyzerContext<LivenessInfo>& context,
                 const LivenessInfo& in) {
-            return analyze_expr<LivenessInfo,LivenessInfo>(
+            return analyze_expr <LivenessInfo>(
                     dot->getExpr(),
                     context,
                     in);

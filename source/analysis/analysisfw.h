@@ -15,19 +15,28 @@
 #include "functions.h"
 #include "iir.h"
 #include "interpreter.h"
+#include "dotexpr.h"
 
 class ParamExpr;
-class DotExpr;
 
 template <typename FlowInfo>
-using FlowMap = std::unordered_map<const IIRNode*, FlowInfo> ;
+struct FlowPair {
+    FlowInfo in;
+    FlowInfo out;
+};
+
+template <typename FlowInfo>
+using FlowMap = std::unordered_map<
+        const IIRNode*,
+        FlowPair<FlowInfo>
+>;
 
 template <typename I>
 std::ostream& operator<<(
         std::ostream& strm,
         const FlowMap<I>& flow) {
     for (auto& f: flow) {
-        strm << f.first->toString() << f.second << std::endl ;
+        strm << f.first->toString() << f.second.in << std::endl ;
     }
     return strm ;
 }
@@ -50,7 +59,7 @@ namespace mcvm { namespace analysis {
             FlowInfo returns_ ; 
             std::stack<FlowInfo> recursive_returns_ ;
 
-            std::unordered_map<const IIRNode*,FlowInfo> data_ ;
+            FlowMap<FlowInfo> data_ ;
             std::unordered_set<ProgFunction*> recursive_ ;
             bool recursion_ = false ;
             Environment* local_env_ ;
@@ -76,14 +85,6 @@ namespace mcvm { namespace analysis {
         return top<FlowInfo>();
     }
     
-
-    template <typename Expr, typename FlowInfo, typename ExprInfo>
-        ExprInfo analyze_expr (
-                const Expr* expr,
-                AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in) { 
-            return top<ExprInfo>() ;
-        }
 
     template <Direction d,
              typename FlowInfo, 
@@ -231,7 +232,10 @@ namespace mcvm { namespace analysis {
 
             asm("#finbackward_direction") ;
             for (auto st: stmtsequence) {
-                std::cout << st->toString() << std::endl ;
+
+                context.data_[(IIRNode*)st].in = current ;
+
+
                 switch (st->getStmtType()) {
                     case Statement::ASSIGN:
                         asm("#assigncall");
@@ -296,8 +300,15 @@ namespace mcvm { namespace analysis {
                     case Statement::WHILE:
                         break;
                 }
-                std::cout << current << std::endl ;
-                context.data_[(IIRNode*)st] = current ;
+                context.data_[(IIRNode*)st].out = current ;
+
+                // Printing
+                std::cout << "==== Statement ====" << std::endl ;
+                std::cout << st->toString() << std::endl ;
+                std::cout << "==== In ====" << std::endl ;
+                std::cout << context.data_[(IIRNode*)st].in << std::endl ;
+                std::cout << "==== Out ====" << std::endl ;
+                std::cout << context.data_[(IIRNode*)st].out << std::endl ;
             }
             return current ;
         }
@@ -378,45 +389,55 @@ namespace mcvm { namespace analysis {
         }
 
 
-    template <typename FlowInfo, typename ExprInfo>
-        ExprInfo analyze_expr(
+    /* Scafolding function for expression,
+     * not mandatory for the analysis framework 
+     *
+     * */
+
+    template <typename E, typename Expr, typename... Params>
+        E analyze_expr (
+                const Expr*,
+                Params... p
+                ) {
+            return top<E>() ;
+        }
+
+    template <typename E, typename... Params>
+       E analyze_expr (
                 const Expression* expr,
-                AnalyzerContext<FlowInfo>& context,
-                const FlowInfo& in)
-        {
+                Params... p) {
             //std::cout << "dispatch" << std::endl ;
-            
             switch (expr->getExprType()) {
                 case Expression::ExprType::MATRIX:
-                    return analyze_expr<MatrixExpr,FlowInfo,ExprInfo> ((MatrixExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const MatrixExpr*>(expr),p...) ;
                 case Expression::ExprType::FN_HANDLE:
-                    return analyze_expr<FnHandleExpr,FlowInfo,ExprInfo> ((FnHandleExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const FnHandleExpr*>(expr),p...) ;
                 case Expression::ExprType::LAMBDA:
-                    return analyze_expr<LambdaExpr,FlowInfo,ExprInfo> ((LambdaExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const LambdaExpr*>(expr),p...) ;
                 case Expression::ExprType::CELLARRAY:
-                    return analyze_expr<CellArrayExpr,FlowInfo,ExprInfo> ((CellArrayExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const CellArrayExpr*>(expr),p...) ;
                 case Expression::ExprType::END:
-                    return analyze_expr<EndExpr,FlowInfo,ExprInfo> ((EndExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const EndExpr*>(expr),p...) ;
                 case Expression::ExprType::RANGE:
-                    return analyze_expr<RangeExpr,FlowInfo,ExprInfo> ((RangeExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const RangeExpr*>(expr),p...) ;
                 case Expression::ExprType::STR_CONST:
-                    return analyze_expr<StrConstExpr,FlowInfo,ExprInfo> ((StrConstExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const StrConstExpr*>(expr),p...) ;
                 case Expression::ExprType::FP_CONST:
-                    return analyze_expr<FPConstExpr,FlowInfo,ExprInfo> ((FPConstExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const FPConstExpr*>(expr),p...) ;
                 case Expression::ExprType::BINARY_OP:
-                    return analyze_expr<BinaryOpExpr,FlowInfo,ExprInfo> ((BinaryOpExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const BinaryOpExpr*>(expr),p...) ;
                 case Expression::ExprType::UNARY_OP:
-                    return analyze_expr<UnaryOpExpr,FlowInfo,ExprInfo> ((UnaryOpExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const UnaryOpExpr*>(expr),p...) ;
                 case Expression::ExprType::CELL_INDEX:
-                    return analyze_expr<CellIndexExpr,FlowInfo,ExprInfo> ((CellIndexExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const CellIndexExpr*>(expr),p...) ;
                 case Expression::ExprType::INT_CONST:
-                    return analyze_expr<IntConstExpr,FlowInfo,ExprInfo> ((IntConstExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const IntConstExpr*>(expr),p...) ;
                 case Expression::ExprType::PARAM:
-                    return analyze_expr<ParamExpr,FlowInfo,ExprInfo> ((ParamExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const ParamExpr*>(expr),p...) ;
                 case Expression::ExprType::DOT:
-                    return analyze_expr<DotExpr,FlowInfo,ExprInfo> ((DotExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const DotExpr*>(expr),p...) ;
                 case Expression::ExprType::SYMBOL:
-                      return analyze_expr<SymbolExpr,FlowInfo,ExprInfo> ((SymbolExpr*)expr,context,in ) ;
+                    return analyze_expr<E> (static_cast<const SymbolExpr*>(expr),p...) ;
             }
         }
 

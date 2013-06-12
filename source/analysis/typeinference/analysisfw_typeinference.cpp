@@ -1,5 +1,5 @@
 #include <analysis/typeinference/analysisfw_typeinference.h>
-
+#include <analysis/value/value.h>
 #include "dotexpr.h"
 
 namespace mcvm { namespace analysis { 
@@ -19,7 +19,9 @@ namespace mcvm { namespace analysis {
         FlowMap<F> analyze(ProgFunction* function) {
             AnalyzerContext<F> context ;
             F entry ;
-            return analyze_function<F,Direction::Forward> (context,function,entry) ;
+            auto value_analysis = analyze<ValueInfo>(function) ;
+            return analyze_function<F,Direction::Forward,decltype(value_analysis)>
+                (context,function,entry,value_analysis) ;
         }
     
     TypeFlowInfo analyze_function_without_flowmap(
@@ -109,7 +111,7 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<Info>& context,
             const Info& in)
     {
-        auto left_lattice = analyze_expr<Info,ExprInfo> (
+        auto left_lattice = analyze_expr <ExprInfo> (
                 expr->getExpr(),
                 context,
                 in) ;
@@ -143,7 +145,7 @@ namespace mcvm { namespace analysis {
             const Info& in) {
         
         auto leftexpr = expr->getSymExpr() ;
-        auto left = analyze_expr<TypeFlowInfo,TypeExprInfo> 
+        auto left = analyze_expr <E> 
             (leftexpr,context,in);
         
         if (left.size() != 1)
@@ -225,7 +227,7 @@ namespace mcvm { namespace analysis {
 
                             
                     // Analyze the body
-                    return analyze_expr <TypeFlowInfo, TypeExprInfo> (
+                    return analyze_expr <E> (
                             v.lambda_->getBodyExpr() ,
                             context,
                             input_env);
@@ -303,7 +305,7 @@ namespace mcvm { namespace analysis {
                 //size_t colsize ;
                 for (auto colItr = row.begin(); colItr != row.end(); ++colItr) {
 			auto pExpr = *colItr;
-			auto typevec = analyze_expr <TypeFlowInfo,TypeExprInfo> (
+			auto typevec = analyze_expr <E> (
                                 pExpr,
                                 context,
                                 in) ;
@@ -342,7 +344,7 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<Info>& context,
             const Info& in) {
         
-	auto type = analyze_expr <Info,ExprInfo> (
+	auto type = analyze_expr <E> (
 		expr->getOperand(),
                 context,
                 in);
@@ -365,12 +367,12 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<Info>& context,
             const Info& in) {
         
-     auto left = analyze_expr <F,E> (
+     auto left = analyze_expr <E> (
              expr->getLeftExpr(),
              context,
              in) ;
 
-     auto right = analyze_expr <F,E> (
+     auto right = analyze_expr <E> (
              expr->getRightExpr(),
              context,
              in) ;
@@ -469,13 +471,17 @@ namespace mcvm { namespace analysis {
     TypeFlowInfo analyze_assignstmt (
             const AssignStmt* assign,
             AnalyzerContext<TypeFlowInfo>& context,
-            const TypeFlowInfo& in
+            const TypeFlowInfo& in,
+            const FlowMap<ValueInfo>& values
             ) {
+
+        // Find the value info for this stmt
+        auto value = values.find(assign)->second.in ;
         
             auto out = in ;
 
-            auto rights = analyze_expr <F,E>
-                (assign->getRightExpr(),context,in) ;
+            auto rights = analyze_expr <E>
+                (assign->getRightExpr(),context,in,value) ;
             
             auto lefts = assign->getLeftExprs() ;
 
@@ -543,7 +549,7 @@ namespace mcvm { namespace analysis {
             
             const Expression* expr = *it1 ;
 
-            auto vec = analyze_expr <F,E> (
+            auto vec = analyze_expr <E> (
                     expr,
                     context,
                     in);

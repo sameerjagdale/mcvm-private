@@ -17,7 +17,7 @@ namespace mcvm { namespace analysis {
     using TypeFlowInfo = std::unordered_map<SymbolExpr*,TypeLattice> ;
     using TypeExprInfo = std::vector<TypeLattice> ;
 
-    class TypeError : public std::exception {};
+//    class TypeError : public std::exception {};
     
     TypeLattice recursive_assign (const Expression*, const TypeLattice&) ;
     
