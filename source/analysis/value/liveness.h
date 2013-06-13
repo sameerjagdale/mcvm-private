@@ -4,7 +4,9 @@
 class SymbolExpr ;
 
 namespace mcvm { namespace analysis {
-        using LivenessInfo = std::unordered_set<const SymbolExpr*> ;
+
+    using LivenessInfo = std::unordered_set<const SymbolExpr*> ;
+
 }}
 
 std::ostream& operator<<(

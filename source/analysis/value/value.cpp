@@ -7,6 +7,17 @@ namespace mcvm { namespace analysis {
     using I = ValueInfo ;
     using E = DataObject* ;
 
+    template <typename Expr>
+        E analyze_expr (
+                const Expr*,
+                AnalyzerContext<ValueInfo>& context,
+                const ValueInfo& in) {
+            std::cout << "generic liveness" << std::endl;
+            return {} ;
+        }
+
+#include "analysis/analysisfw_dispatch.h"
+
     template<>
         I top() {
             return I{};
@@ -69,7 +80,7 @@ namespace mcvm { namespace analysis {
             }
             auto var = assigned.front() ;
             if (std::find(std::begin(l), std::end(l), var)!=std::end(l)) {
-                auto gen = analyze_expr <E>(
+                auto gen = analyze_expr_dispatch <E>(
                         assign->getRightExpr(),
                         context,
                         in

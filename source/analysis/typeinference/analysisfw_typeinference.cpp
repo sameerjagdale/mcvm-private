@@ -10,6 +10,25 @@ namespace mcvm { namespace analysis {
     using E = TypeExprInfo ;
     using F = TypeFlowInfo ;
 
+    template <typename Expr>
+        E analyze_expr (
+                const Expr*,
+                AnalyzerContext<F>& context,
+                const F& in) {
+            std::cout << "generic typeinfer " << std::endl;
+            return {} ;
+        }
+    template <typename Expr>
+        E analyze_expr (
+                const Expr*,
+                AnalyzerContext<F>& context,
+                const F& in,
+                const ValueInfo& v) {
+            std::cout << "generic value typeinfer " << std::endl;
+            return {} ;
+        }
+#include "analysis/analysisfw_dispatch.h"
+
     template <>
         TypeExprInfo top() {
             return {} ;
@@ -54,7 +73,7 @@ namespace mcvm { namespace analysis {
     }
 
     template <>
-    ExprInfo analyze_expr(
+    E analyze_expr(
             const RangeExpr* expr,
             AnalyzerContext<Info>& context,
             const Info& in)
@@ -97,7 +116,8 @@ namespace mcvm { namespace analysis {
     ExprInfo analyze_expr (
             const IntConstExpr* expr,
             AnalyzerContext<Info>& context,
-            const Info& in)
+            const Info& in,
+            const ValueInfo& v)
     {
         Lattice lattice (Lattice::mclass::DOUBLE) ;
         lattice.integer_ = true ;
@@ -111,7 +131,7 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<Info>& context,
             const Info& in)
     {
-        auto left_lattice = analyze_expr <ExprInfo> (
+        auto left_lattice = analyze_expr_dispatch <ExprInfo> (
                 expr->getExpr(),
                 context,
                 in) ;
@@ -145,7 +165,7 @@ namespace mcvm { namespace analysis {
             const Info& in) {
         
         auto leftexpr = expr->getSymExpr() ;
-        auto left = analyze_expr <E> 
+        auto left = analyze_expr_dispatch <E> 
             (leftexpr,context,in);
         
         if (left.size() != 1)
@@ -227,7 +247,7 @@ namespace mcvm { namespace analysis {
 
                             
                     // Analyze the body
-                    return analyze_expr <E> (
+                    return analyze_expr_dispatch <E> (
                             v.lambda_->getBodyExpr() ,
                             context,
                             input_env);
@@ -305,7 +325,7 @@ namespace mcvm { namespace analysis {
                 //size_t colsize ;
                 for (auto colItr = row.begin(); colItr != row.end(); ++colItr) {
 			auto pExpr = *colItr;
-			auto typevec = analyze_expr <E> (
+			auto typevec = analyze_expr_dispatch <E> (
                                 pExpr,
                                 context,
                                 in) ;
@@ -344,7 +364,7 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<Info>& context,
             const Info& in) {
         
-	auto type = analyze_expr <E> (
+	auto type = analyze_expr_dispatch <E> (
 		expr->getOperand(),
                 context,
                 in);
@@ -359,6 +379,7 @@ namespace mcvm { namespace analysis {
 		case UnaryOpExpr::ARRAY_TRANSP:
 			return {};
 	}
+        return top<E>() ;
     }
 
     template <>
@@ -367,12 +388,12 @@ namespace mcvm { namespace analysis {
             AnalyzerContext<Info>& context,
             const Info& in) {
         
-     auto left = analyze_expr <E> (
+     auto left = analyze_expr_dispatch <E> (
              expr->getLeftExpr(),
              context,
              in) ;
 
-     auto right = analyze_expr <E> (
+     auto right = analyze_expr_dispatch <E> (
              expr->getRightExpr(),
              context,
              in) ;
@@ -480,7 +501,7 @@ namespace mcvm { namespace analysis {
         
             auto out = in ;
 
-            auto rights = analyze_expr <E>
+            auto rights = analyze_expr_dispatch <E>
                 (assign->getRightExpr(),context,in,value) ;
             
             auto lefts = assign->getLeftExprs() ;
@@ -549,7 +570,7 @@ namespace mcvm { namespace analysis {
             
             const Expression* expr = *it1 ;
 
-            auto vec = analyze_expr <E> (
+            auto vec = analyze_expr_dispatch <E> (
                     expr,
                     context,
                     in);

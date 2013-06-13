@@ -9,6 +9,17 @@ namespace mcvm { namespace analysis {
 
     using L = LivenessInfo ;
     
+    template <typename Expr>
+        LivenessInfo analyze_expr (
+                const Expr*,
+                AnalyzerContext<LivenessInfo>& context,
+                const LivenessInfo& in) {
+            std::cout << "generic liveness" << std::endl;
+            return LivenessInfo{} ;
+        }
+
+#include "analysis/analysisfw_dispatch.h"
+
     template <>
         L top() {
             return L{} ;
@@ -47,11 +58,23 @@ namespace mcvm { namespace analysis {
             return a + b ;
         }
     
-    template <> LivenessInfo analyze_assignstmt (
+    template <>
+        LivenessInfo analyze_expr (
+                const SymbolExpr* symbol,
+                AnalyzerContext<LivenessInfo>& context,
+                const LivenessInfo& in) {
+            std::cout << "specialize" << std::endl ;
+            auto out = in ;
+            out.insert (symbol) ;
+            return out;
+        }
+
+    template <> 
+        LivenessInfo analyze_assignstmt (
                 const AssignStmt* assign,
                 AnalyzerContext<LivenessInfo>& context,
                 const LivenessInfo& in) {
-            auto rhs = analyze_expr<LivenessInfo>(
+            auto rhs = analyze_expr_dispatch<LivenessInfo>(
                  assign->getRightExpr(),
                  context,
                  in);
@@ -65,20 +88,10 @@ namespace mcvm { namespace analysis {
 
     template <>
         LivenessInfo analyze_expr (
-                const SymbolExpr* symbol,
-                AnalyzerContext<LivenessInfo>& context,
-                const LivenessInfo& in) {
-            auto out = in ;
-            out.insert (symbol) ;
-            return out;
-        }
-
-    template <>
-        LivenessInfo analyze_expr (
                 const DotExpr* dot,
                 AnalyzerContext<LivenessInfo>& context,
                 const LivenessInfo& in) {
-            return analyze_expr <LivenessInfo>(
+            return analyze_expr_dispatch <LivenessInfo>(
                     dot->getExpr(),
                     context,
                     in);
