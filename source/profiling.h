@@ -23,7 +23,6 @@
 // Header files
 #include <string>
 #include "platform.h"
-#include "spreadsheet.h"
 #include "configmanager.h"
 
 // Define the preprocessor variable below to disable profiling code
