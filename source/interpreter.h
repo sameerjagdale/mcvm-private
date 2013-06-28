@@ -198,7 +198,11 @@ private:
 	};
 
 	// Stack used for type inference validation
+#ifdef MCVM_USE_GC
 	typedef std::stack<FuncTypeInfo, std::deque<FuncTypeInfo, gc_allocator<FuncTypeInfo> > > TypeInfoStack;
+#else
+	typedef std::stack<FuncTypeInfo, std::deque<FuncTypeInfo>> TypeInfoStack;
+#endif
 	static TypeInfoStack s_typeInfoStack;
 
 	// Set used for type inference output

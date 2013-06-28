@@ -34,11 +34,13 @@ class CellArrayExpr : public Expression
 {
 public:
 	
-	// Cell array row type definition
+#ifdef MCVM_USE_GC
 	typedef std::vector<Expression*, gc_allocator<Expression*> > Row;
-	
-	// Row list type definition
 	typedef std::vector<Row, gc_allocator<Row> > RowVector;
+#else
+	typedef std::vector<Expression*> Row;
+	typedef std::vector<Row> RowVector;
+#endif
 	
 	// Constructor
 	CellArrayExpr(const RowVector& rows) : m_rows(rows) { m_exprType = CELLARRAY; }

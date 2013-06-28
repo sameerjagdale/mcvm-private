@@ -32,8 +32,11 @@
 #include "filesystem.h"
 
 
-// Compilation unit list type definition
+#ifdef MCVM_USE_GC
 typedef std::vector<IIRNode*, gc_allocator<IIRNode*> > CompUnits;
+#else
+typedef std::vector<IIRNode*> CompUnits;
+#endif
 
 /***************************************************************
 * Class   : CodeParser

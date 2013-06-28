@@ -34,12 +34,18 @@
 ****************************************************************
 Revisions and bug fixes:
 */
-class Environment : public gc
+class Environment 
+#ifdef MCVM_USE_GC
+: public gc
+#endif
 {
 public:
 	
-	// Symbol vector type definition
+#ifdef MCVM_USE_GC
 	typedef std::vector<SymbolExpr*, gc_allocator<SymbolExpr*> > SymbolVec;
+#else
+	typedef std::vector<SymbolExpr*> SymbolVec;
+#endif
 	
 	// Public constructor
 	Environment();

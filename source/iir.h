@@ -22,8 +22,11 @@
 
 // Header files
 #include <string>
+
+#ifdef MCVM_USE_GC
 #include <gc_cpp.h>
 #include <gc/gc_allocator.h>
+#endif
 
 /***************************************************************
 * Class   : IIRNode
@@ -33,7 +36,10 @@
 ****************************************************************
 Revisions and bug fixes:
 */
-class IIRNode : public gc
+class IIRNode
+#ifdef MCVM_USE_GC
+: public gc
+#endif
 {
 public:
 	

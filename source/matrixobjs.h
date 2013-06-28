@@ -2080,7 +2080,12 @@ protected:
 		
 		// Allocate memory for the matrix elements
 		// Note that the memory is garbage-collected
+#ifdef MCVM_USE_GC
 		m_pElements = (ScalarType*)GC_MALLOC_ATOMIC_IGNORE_OFF_PAGE(m_numElements * sizeof(ScalarType));
+#else
+		m_pElements = (ScalarType*)malloc(m_numElements * sizeof(ScalarType));
+#endif
+
 	}
 	
 	// Method to initialize the matrix

@@ -54,8 +54,11 @@ public:
 		bool lastDim;		
 	};
 	
-	// Association vector type definition
+#ifdef MCVM_USE_GC
 	typedef std::vector<Assoc, gc_allocator<Assoc> > AssocVector;
+#else
+	typedef std::vector<Assoc> AssocVector;
+#endif
 	
 	// Constructor
 	EndExpr(const AssocVector& assocs = AssocVector())

@@ -33,8 +33,11 @@ public:
 	// Switch case type definition
 	typedef std::pair<Expression*, StmtSequence*> SwitchCase;
 	
-	// Case list type definition
+#ifdef MCVM_USE_GC
 	typedef std::vector<SwitchCase, gc_allocator<SwitchCase> > CaseList;
+#else
+	typedef std::vector<SwitchCase> CaseList;
+#endif
 	
 	// Constructor
 	SwitchStmt(Expression* pSwitchExpr, const CaseList& caseList, StmtSequence* pDefaultCase) 

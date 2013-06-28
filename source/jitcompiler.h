@@ -197,7 +197,11 @@ private:
 	typedef std::vector<BranchPoint> BranchList;
 	
 	// Function set type definition
+#ifdef MCVM_USE_GC
 	typedef std::set<Function*, std::less<Function*>, gc_allocator<Function> > FunctionSet;
+#else
+	typedef std::set<Function*> FunctionSet;
+#endif
 		
 	// Native function structure
 	struct NativeFunc
@@ -250,7 +254,11 @@ private:
 	};
 	
 	// Optimized library function map type definition
+#ifdef MCVM_USE_GC
 	typedef std::map<LibFuncKey, void*, std::less<LibFuncKey>, gc_allocator<std::pair<LibFuncKey, void*> > > LibFuncMap;
+#else
+	typedef std::map<LibFuncKey, void*> LibFuncMap;
+#endif
 	
 	// Compiled program function pointer type definition
 	typedef void (*COMP_FUNC_PTR)(byte* pInStruct, byte* pOutStruct);
@@ -327,7 +335,11 @@ private:
 	};
 	
 	// Compiled version map type definition
+#ifdef MCVM_USE_GC
 	typedef std::map<TypeSetString, CompVersion, std::less<TypeSetString>, gc_allocator<std::pair<TypeSetString, CompVersion> > > VersionMap;
+#else
+	typedef std::map<TypeSetString, CompVersion> VersionMap;
+#endif
 	
 	// Compiled function structure
 	struct CompFunction
@@ -346,7 +358,11 @@ private:
 	};
 	
 	// Function map type definition
+#ifdef MCVM_USE_GC
 	typedef std::map<ProgFunction*, CompFunction, std::less<ProgFunction*>, gc_allocator<std::pair<ProgFunction*, CompFunction> > > FunctionMap;
+#else
+	typedef std::map<ProgFunction*, CompFunction> FunctionMap;
+#endif
 	
 	// Binary operator factory function type definition
 	typedef llvm::Value* (*BINOP_FACTORY_FUNC)(llvm::IRBuilder<>& builder, llvm::Value* pLVal, llvm::Value* pRVal);

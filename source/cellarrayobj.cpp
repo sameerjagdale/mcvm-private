@@ -36,7 +36,11 @@ template <> void MatrixObj<DataObject*>::allocMatrix()
 	// Allocate memory for the matrix elements
 	// Note that the memory is garbage-collected
 	// This allocation is non-atomic to support cell arrays
+#ifdef MCVM_USE_GC
 	m_pElements = (DataObject**)GC_MALLOC_IGNORE_OFF_PAGE(m_numElements * sizeof(DataObject*));
+#else
+	m_pElements = (DataObject**)malloc(m_numElements * sizeof(DataObject*));
+#endif
 }
 
 /***************************************************************

@@ -23,8 +23,12 @@
 // Header files
 #include <utility>
 #include <map>
+
+#ifdef MCVM_USE_GC
 #include <gc_cpp.h>
 #include <gc/gc_allocator.h>
+#endif
+
 #include "typeinfer.h"
 
 // Forward declarations
@@ -38,7 +42,10 @@ class StmtSequence;
 ****************************************************************
 Revisions and bug fixes:
 */
-class AnalysisInfo : public gc
+class AnalysisInfo
+#ifdef MCVM_USE_GC
+: public gc
+#endif
 {
 public:
 	
@@ -129,8 +136,11 @@ private:
 		bool running;
 	};
 
-	// Analysis info cache map type definition 
+#ifdef MCVM_USE_GC
 	typedef std::map<CacheKey, CachedInfo, std::less<CacheKey>, gc_allocator<std::pair<CacheKey, CachedInfo> > > CacheMap;
+#else
+	typedef std::map<CacheKey,CachedInfo> CacheMap;
+#endif
 	
 	// Analysis info cache map object
 	static CacheMap s_cacheMap;

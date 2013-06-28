@@ -52,7 +52,10 @@ typedef std::map<const LoopStmt*, FlowContextPair> FlowContextMap;
 typedef std::pair<const SymbolExpr*, const AssignStmt*> ContxInsFlowEntry;
 
 // a flow entry structure ...
-struct FlowEntry: public gc
+struct FlowEntry
+#if MCVM_USE_GC
+: public gc
+#endif
 {
 	// constructor for a convenient creation of a flow entry
 	FlowEntry(const SymbolExpr* symbExpr, const AssignStmt* aStmt,

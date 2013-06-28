@@ -35,8 +35,11 @@ class ArrayObj : public DataObject
 {
 public:
 
-	// Object vector type definition
+#ifdef MCVM_USE_GC
 	typedef std::vector<DataObject*, gc_allocator<DataObject*> > ObjVector;
+#else
+	typedef std::vector<DataObject*> ObjVector;
+#endif
 	
 	// Default constructor
 	ArrayObj(size_t reserve = 1) { m_type = ARRAY; m_objects.reserve(reserve); }

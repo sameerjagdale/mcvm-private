@@ -16,16 +16,17 @@
 //                                                                             //
 // =========================================================================== //
 
-// Include guards
 #ifndef __OBJECTS_H__
 #define __OBJECTS_H__
 
-// Header files
 #include <string>
-#include <gc_cpp.h>
-#include <gc/gc_allocator.h>
 #include <iostream>
 #include <vector>
+
+#ifdef MCVM_USE_GC
+#include <gc_cpp.h>
+#include <gc/gc_allocator.h>
+#endif
 
 using DimVector = std::vector<size_t> ;
 
@@ -37,7 +38,10 @@ using DimVector = std::vector<size_t> ;
 ****************************************************************
 Revisions and bug fixes:
 */
-class DataObject : public gc
+class DataObject 
+#ifdef MCVM_USE_GC
+: public gc
+#endif
 {
 	// Declare the JIT compiler as a friend class
 	// This is so the JIT can read the type variable directly

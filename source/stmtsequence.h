@@ -37,8 +37,11 @@ class StmtSequence : public IIRNode
 {
 public:
 	
-	// Statement vector type definition
+#ifdef MCVM_USE_GC
 	typedef std::vector<Statement*, gc_allocator<Statement*> > StmtVector;
+#else
+	typedef std::vector<Statement*> StmtVector;
+#endif
 	
 	// Constructor
 	StmtSequence(StmtVector stmts) : m_statements(stmts) { m_type = SEQUENCE; }

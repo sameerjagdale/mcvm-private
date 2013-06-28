@@ -124,8 +124,11 @@ public:
 	// Parameter vector type definition
 	typedef std::vector<SymbolExpr*> ParamVector; 
 	
-	// Function vector type definition
+#ifdef MCVM_USE_GC
 	typedef std::vector<ProgFunction*, gc_allocator<ProgFunction*> > FuncVector;
+#else
+	typedef std::vector<ProgFunction*> FuncVector;
+#endif
 	
 	// Constructor
 	ProgFunction(
