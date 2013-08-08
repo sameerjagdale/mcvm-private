@@ -53,7 +53,7 @@ typedef std::pair<const SymbolExpr*, const AssignStmt*> ContxInsFlowEntry;
 
 // a flow entry structure ...
 struct FlowEntry
-#if MCVM_USE_GC
+#ifdef MCVM_USE_GC
 : public gc
 #endif
 {

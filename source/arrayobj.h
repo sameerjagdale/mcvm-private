@@ -23,7 +23,7 @@
 // Header files
 #include <vector>
 #include "objects.h"
-
+#include<gc/gc_allocator.h>
 /***************************************************************
 * Class   : ArrayObj
 * Purpose : Represent an array of data objects

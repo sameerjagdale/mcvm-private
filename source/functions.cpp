@@ -26,7 +26,7 @@
 #include "transform_split.h"
 #include "interpreter.h"
 #include "utility.h"
-
+#include "lru-cache.h"
 /***************************************************************
 * Function: ProgFunction::ProgFunction()
 * Purpose : Constructor for program function class
@@ -265,4 +265,4 @@ Expression::SymbolSet ProgFunction::getSymbolDefs() const
 	// Return the set of defined symbols
 	return defSet;		
 }
-	
+

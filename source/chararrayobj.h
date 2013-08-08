@@ -67,6 +67,7 @@ public:
 		// Return the output string
 		return outStr;
 	}
+	
 };
 
 #endif // #ifndef CHARARRAYOBJ_H_ 

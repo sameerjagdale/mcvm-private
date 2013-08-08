@@ -218,7 +218,8 @@ namespace mcvm { namespace stdlib {
 	
 	// Library function used to create and initialize matrices
 	extern LibFunction zeros;
-	
+	//Library Function used to compile C/C++ files to Mex	
+	extern LibFunction mex;
 	// Function to load the library functions
 	void loadLibrary();
 }}

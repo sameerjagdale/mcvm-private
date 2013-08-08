@@ -40,7 +40,7 @@ const std::string TEMP_VAR_PREFIX = "$t";
 ****************************************************************
 Revisions and bug fixes:
 */
-class Function : public IIRNode, DataObject
+class Function : public IIRNode, public DataObject
 {
 public:
 	
@@ -59,7 +59,7 @@ public:
 	
 	// Accessor to tell if this is a program function
 	bool isProgFunction() const { return m_isProgFunction; }
-	
+	bool isMexFunction()const{return m_isMexFunction;}	
 protected:
 	
 	// Function name
@@ -67,6 +67,7 @@ protected:
 	
 	// Variable to indicate whether this is a program function
 	bool m_isProgFunction;
+	bool m_isMexFunction;
 };
 
 /***************************************************************

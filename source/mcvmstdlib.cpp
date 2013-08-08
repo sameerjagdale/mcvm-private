@@ -79,6 +79,7 @@ namespace mcvm { namespace stdlib {
 			for (size_t i = 1; i <= pSizeMatrix->getNumElems(); ++i)
 			{
 				// Get the value of this element
+				
 				float64 value = pSizeMatrix->getElem1D(i);
 				
 				// Cast the value into an integer
@@ -200,7 +201,6 @@ namespace mcvm { namespace stdlib {
 	{		
 		// Parse the matrix size from the input arguments
 		DimVector matSize = parseMatSize(pArguments);
-		
 		// Create and initialize a new matrix
 		MatrixF64Obj* pNewMatrix = new MatrixF64Obj(matSize, value);
 		
@@ -1757,15 +1757,37 @@ namespace mcvm { namespace stdlib {
 			throw RunError("insufficient argument count");		
 		
 		// If the first argument is not a function handle, throw an exception
-		if (pArguments->getObject(0)->getType() != DataObject::FN_HANDLE)
+		if (pArguments->getObject(0)->getType() != DataObject::FN_HANDLE&&pArguments->getObject(0)->getType()!=DataObject::CHARARRAY)
 			throw RunError("can only apply feval to function handles");
 		
 		// Get a typed pointer to the function handle
-		FnHandleObj* pHandle = (FnHandleObj*)pArguments->getObject(0);
+		Function* pFunction ;
+		if(pArguments->getObject(0)->getType()==DataObject::FN_HANDLE){
+			FnHandleObj* pHandle = (FnHandleObj*)pArguments->getObject(0);
 		
-		// Get a pointer to the function object
-		Function* pFunction = pHandle->getFunction();
-		
+			// Get a pointer to the function object
+			pFunction = pHandle->getFunction();
+		}
+		else
+		{
+			CharArrayObj* funcStr=(CharArrayObj*)pArguments->getObject(0);
+			DataObject* funcObj=Interpreter::getBinding(funcStr->getString());
+			if(funcObj!=NULL)
+			{
+				if(funcObj->getType()==DataObject::FUNCTION)
+				{
+					pFunction=(Function*)funcObj;		
+				}
+				else 
+				{
+					throw RunError("Symbol is not a function ");
+				}
+			}
+			else 
+			{
+				throw RunError("Symbol not found");
+			}
+		}
 		// Create an array object for the function arguments
 		ArrayObj* pFuncArgs = new ArrayObj(pArguments->getSize() - 1); 
 		
@@ -4571,6 +4593,18 @@ namespace mcvm { namespace stdlib {
 		return createMatrix(pArguments, 0);
 	}
 	
+	/**
+		Function to compile C/C++ functions to mex 
+	*/	
+	ArrayObj* mexFunc(ArrayObj* pArguments)
+	{
+		std::string cmd="/bin/mex";
+		for(int i=0;i<pArguments->getSize();i++)
+		{
+			DataObject* dataobject=pArguments->getObject(i);
+			//if
+		}		
+	}
 	// Library function objects
 	LibFunction abs			("abs"		, absFunc		, absFuncTypeMapping			);
 	LibFunction any			("any"		, anyFunc		, anyFuncTypeMapping			);
@@ -4636,6 +4670,7 @@ namespace mcvm { namespace stdlib {
 	LibFunction true_		("true"		, trueFunc		, createLogArrTypeMapping		);
 	LibFunction unique		("unique"	, uniqueFunc	, uniqueFuncTypeMapping			);
 	LibFunction zeros		("zeros"	, zerosFunc		, createF64MatTypeMapping		);
+	LibFunction mex		        ("mex"	        , mexFunc		, nullTypeMapping				);
 	
 	/***************************************************************
 	* Function: loadLibrary()
@@ -4711,6 +4746,7 @@ namespace mcvm { namespace stdlib {
 		Interpreter::setBinding(true_.getFuncName()		, (DataObject*)&true_		);
 		Interpreter::setBinding(unique.getFuncName()	, (DataObject*)&unique		);
 		Interpreter::setBinding(zeros.getFuncName()		, (DataObject*)&zeros		);
+		Interpreter::setBinding(mex.getFuncName()		, (DataObject*)&mex		);
 		
 		// Declare a type set for a float64 scalar type
 		TypeSet f64ScalarArg = typeSetMake(TypeInfo(

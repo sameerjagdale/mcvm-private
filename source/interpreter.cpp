@@ -51,6 +51,7 @@ Interpreter::TypeInfoStack Interpreter::s_typeInfoStack;
 // Static set used for type inference output
 Interpreter::ViewedStmtSet Interpreter::s_viewedStmtSet;
 
+
 /***************************************************************
 * Function: Interpreter::initialize()
 * Purpose : Initialize the interpreter
@@ -89,8 +90,10 @@ void Interpreter::runCommand(const std::string& commandString)
 			// Throw an exception
 			throw RunError("invalid IIR node produced");
 		}
-	
-		// Get a typed pointer to the function
+		/*if(MexFunction::isPresent(commandString+".mex")==0){
+			std::cout<<"is a mex function"<<std::endl;
+		}*/
+		// Get a typed pointer to the function	
 		ProgFunction* pFuncNode = (ProgFunction*)nodes.front();
 	
 		// If the node is a script
@@ -144,6 +147,9 @@ ArrayObj* Interpreter::callFunction(Function* pFunction, ArrayObj* pArguments, s
 		ArrayObj* pOutput;
 
 		// If this is a program function
+		if(pFunction->isMexFunction()){
+			return callMexFunction(static_cast<MexFunction*>(pFunction),pArguments,nargout);
+		}
 		if (pFunction->isProgFunction())
 		{
 			// Get a typed pointer to the program function
@@ -2515,7 +2521,17 @@ DataObject* Interpreter::evalSymbol(const SymbolExpr* pExpr, Environment* pEnv)
 			// Log that the symbol was not found
 			std::cout << "Symbol not found: \"" + pExpr->toString() + "\"" << std::endl;
 		}
-
+		//Attempt to load Mex File	
+		pObject=loadMexFile(pExpr->getSymName()+".mex");
+		if(pObject!=NULL)
+		{
+#ifdef DEBUG
+			std::cout<<"Mex function object found"<<std::endl;				
+#endif				
+			
+			Environment::bind(&s_globalEnv, SymbolExpr::getSymbol(pExpr->getSymName()),pObject);
+			return pObject;
+		}
 		// Attempt to load the m-file with this name, if any
 		loadMFile(pExpr->getSymName() + ".m");
 
@@ -2797,4 +2813,8 @@ void Interpreter::clearProgFuncs()
 			Environment::unbind(&s_globalEnv, pSymbol);
 		}
 	}
+}
+
+DataObject* Interpreter::getBinding(const std::string & str){
+	return Environment::lookup(&s_globalEnv,SymbolExpr::getSymbol(str));	
 }

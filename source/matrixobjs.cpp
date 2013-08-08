@@ -14,7 +14,7 @@
 #include <algorithm>
 #include "matrixobjs.h"
 #include "matrixops.h"
-
+#include<complex>
 // Include the blas and lapack header files (C-specific)
 #ifdef MCVM_USE_CLAPACK
 extern "C"
@@ -453,6 +453,41 @@ template <> DataObject* MatrixObj<Complex128>::convert(DataObject::Type outType)
 	}
 }
 
+template <> DataObject* MatrixObj<Complex64>::convert(DataObject::Type outType) const
+{
+	// Switch on the output type type
+	switch (outType)
+	{
+		// Logical array
+		case LOGICALARRAY:
+		{
+			// Create a logical array object of the same size
+			MatrixObj<bool>* pOutput = new MatrixObj<bool>(m_size);
+			
+			// Convert each element of this matrix
+			for (size_t i = 1; i <= m_numElements; ++i)
+			{
+				// Get the boolean value of this element
+				bool boolVal = (getElem1D(i) != Complex64(0));
+				
+				// Set the value in the output
+				pOutput->setElem1D(i, boolVal);
+			}
+			
+			// Return the output object
+			return pOutput;
+		}
+		break;
+	
+		// For all other output types
+		default:
+		{
+			// Refer to the default conversion method
+			return DataObject::convert(outType);
+		}
+	}
+}
+
 /***************************************************************
 * Function: MatrixObj<DayaObject*>::convert()
 * Purpose : Type conversion for cell array objects
@@ -574,6 +609,58 @@ template <> MatrixObj<Complex128>* MatrixObj<Complex128>::matrixMult(const Matri
 	return pResult;
 }
 
+template <> MatrixObj<Complex64>* MatrixObj<Complex64>::matrixMult(const MatrixObj* pMatrixA, const MatrixObj* pMatrixB)
+{
+	// Ensure that both matrices are square with compatible inner dimensions
+	assert (multCompatible(pMatrixA, pMatrixB));
+	
+	// Create a new matrix object to store the result
+	MatrixObj* pResult = new MatrixObj(pMatrixA->m_size[0], pMatrixB->m_size[1]);
+	
+	// If either of the input matrices are isEmpty, return early
+	if (pMatrixA->isEmpty() || pMatrixB->isEmpty())
+		return pResult;
+	
+	// Create complex objects for the alpha and beta parameters
+#ifndef MCVM_USE_ACML	
+	// Call the BLAS function to perform the multiplication
+	// This computes: alpha*A*B + beta*C, A(m,k), B(k,n), C(m,n)
+	Complex64 alpha = 1.0;
+	Complex64 beta = 0.0;
+	cblas_zgemm(
+		CblasColMajor,				// Column major storage
+		CblasNoTrans,				// No transposition of A
+		CblasNoTrans,				// No transposition of B
+		pMatrixA->m_size[0],
+		pMatrixB->m_size[1],
+		pMatrixA->m_size[1],
+		&alpha,						// alpha = 1.0
+		pMatrixA->m_pElements,
+		pMatrixA->m_size[0],		// Stride of A
+		pMatrixB->m_pElements,
+		pMatrixB->m_size[0],		// Stride of B
+		&beta,						// beta = 0.0
+		pResult->m_pElements,		// C is the result
+		pResult->m_size[0]			// Stride of result 
+	);
+#else
+	doublecomplex alpha;
+	alpha.real = 1.0;
+	alpha.imag = 0.0;
+	doublecomplex beta;
+	beta.real = 1.0;
+	beta.imag = 0.0;
+	doublecomplex *ptrA = (doublecomplex *)(pMatrixA->m_pElements);
+	doublecomplex *ptrB = (doublecomplex *)(pMatrixB->m_pElements); 
+	doublecomplex *ptrC = (doublecomplex *)(pResult->m_pElements);
+	zgemm('n','n',pMatrixA->m_size[0],pMatrixB->m_size[1],pMatrixA->m_size[1],&alpha,ptrA,pMatrixA->m_size[0],ptrB,pMatrixB->m_size[0],&beta,ptrC,pResult->m_size[0]);
+#endif
+	// Increment the matrix multiplication count
+	PROF_INCR_COUNTER(Profiler::MATRIX_MULT_COUNT);
+	
+	// Return a pointer to the result matrix
+	return pResult;
+}
 /***************************************************************
 * Function: static MatrixObj<float64>::scalarMult()
 * Purpose : Scalar multiplication of 64-bit float matrices
@@ -641,6 +728,31 @@ template <> MatrixObj<Complex128>* MatrixObj<Complex128>::scalarMult(const Matri
 	return pResult;
 }
 
+template <> MatrixObj<Complex64>* MatrixObj<Complex64>::scalarMult(const MatrixObj* pMatrix, Complex64 scalar)
+{
+	// Create a new matrix object to store the result
+	MatrixObj* pResult = new MatrixObj(pMatrix->m_size);
+	
+	// If the input matrix is isEmpty, return early
+	if (pMatrix->isEmpty())
+		return pResult;
+#ifndef MCVM_USE_ACML	
+	// Call the BLAS function to perform the multiplication
+	// This computes: y = alpha * x + y
+	cblas_zaxpy(
+		pMatrix->m_numElements,
+		&scalar,					// alpha is the scalar
+		pMatrix->m_pElements,
+		1,
+		pResult->m_pElements,		// C is the result
+		1
+	);
+#else
+	zaxpy(pMatrix->m_numElements,(doublecomplex *)&scalar,(doublecomplex*)pMatrix->m_pElements,1,(doublecomplex*)pResult->m_pElements,1);
+#endif
+	// Return a pointer to the result matrix
+	return pResult;
+}
 /***************************************************************
 * Function: static MatrixObj<float64>::matrixLeftDiv()
 * Purpose : Matrix left division of 64-bit float matrices
@@ -913,6 +1025,7 @@ template <> MatrixObj<float64>* MatrixObj<float64>::matrixLeftDiv(const MatrixOb
 		//tau stays tau
 		double *c = pMatrixQB->m_pElements; //input B, output QB
 		int ldc = mb;
+		int lworkQuery = -1; //queries the work size
 		//work stays work
 		//info stays info
 
@@ -1058,6 +1171,89 @@ template <> MatrixObj<Complex128>* MatrixObj<Complex128>::matrixLeftDiv(const Ma
 	}
 }
 
+template <> MatrixObj<Complex64>* MatrixObj<Complex64>::matrixLeftDiv(const MatrixObj* pMatrixA, const MatrixObj* pMatrixB)
+{
+	// Ensure that the matrices have compatible dimensions
+	assert (leftDivCompatible(pMatrixA, pMatrixB));
+	
+	// If the matrix A is square
+	if (pMatrixA->isSquare())
+	{
+#ifdef MCVM_USE_CLAPACK
+		// Make a copy of B to store the output
+		MatrixC64Obj* pOutMatrix = pMatrixB->copy();
+		
+		integer n 			= pMatrixA->m_size[0];						// N - number of rows/cols of A
+		integer nrhs 		= pMatrixB->m_size[1];						// number of cols of B	
+		doublecomplex* a	= (doublecomplex*)pMatrixA->m_pElements;	// Matrix A
+		integer lda			= pMatrixA->m_size[0];						// Stride of A
+		integer* ipiv		= new integer[n];							// (output) pivot indices
+		doublecomplex* b	= (doublecomplex*)pOutMatrix->m_pElements;	// Matrix B
+		integer ldb			= pMatrixB->m_size[0];						// Stride of B
+		integer info;													// (output) convergence info
+		
+		// Call the ZGESV function to solve the system A * X = B
+		zgesv_(
+			&n,
+			&nrhs,
+			a,
+			&lda,
+			ipiv,
+			b,
+			&ldb,
+			&info
+		);
+		
+		// Delete the pivot indices array
+		delete [] ipiv;
+#else
+		MatrixC64Obj* pOutMatrix = pMatrixB->copy();
+		
+		int n 			= pMatrixA->m_size[0];						// N - number of rows/cols of A
+		int nrhs 		= pMatrixB->m_size[1];						// number of cols of B	
+		int lda			= pMatrixA->m_size[0];						// Stride of A
+		int* ipiv		= new int[n];							// (output) pivot indices
+		int ldb			= pMatrixB->m_size[0];						// Stride of B
+		int info;													// (output) convergence info
+#ifdef MCVM_USE_ACML	
+		doublecomplex* a	= (doublecomplex*)pMatrixA->m_pElements;	// Matrix A
+		doublecomplex* b	= (doublecomplex*)pOutMatrix->m_pElements;	// Matrix B
+		zgesv_(
+			&n,
+			&nrhs,
+			a,
+			&lda,
+			ipiv,
+			b,
+			&ldb,
+			&info
+		);
+#endif
+#ifdef MCVM_USE_LAPACKE
+		lapack_complex_double *a = (lapack_complex_double*)pMatrixA->m_pElements;
+		lapack_complex_double *b = (lapack_complex_double*)pOutMatrix->m_pElements;
+		info = LAPACKE_zgesv(LAPACK_COL_MAJOR,n,nrhs,a,lda,ipiv,b,ldb);
+#endif
+		
+		// Delete the pivot indices array
+		delete [] ipiv;
+
+#endif
+		// If the result could not be computed, throw an exception
+		if (info != 0)
+			throw RunError("illegal value in input matrix");
+		
+		// Return the output matrix
+		return pOutMatrix;
+	}
+	
+	// Otherwise, A is an M-by-N matrix
+	else
+	{		
+		// Throw an exception
+		throw RunError("M-by-N matrix support for left division currently unimplemented");
+	}
+}
 /***************************************************************
 * Function: static MatrixObj<float64>::matrixRightDiv()
 * Purpose : Matrix right division of 64-bit float matrices
@@ -1102,6 +1298,19 @@ template <> MatrixObj<Complex128>* MatrixObj<Complex128>::matrixRightDiv(const M
 	return transpose(matrixLeftDiv(transpose(pMatrixA), transpose(pMatrixB)));
 }
 
+template <> MatrixObj<Complex64>* MatrixObj<Complex64>::matrixRightDiv(const MatrixObj* pMatrixA, const MatrixObj* pMatrixB)
+{
+	// If the right matrix is a scalar
+	if (pMatrixB->isScalar())
+	{
+		// Perform the operation with a matrix lhs and a scalar rhs
+		return rhsScalarArrayOp<DivOp<Complex64>, Complex64, Complex64>(pMatrixA, pMatrixB->getScalar());
+	}
+	
+	// TODO: find more direct solution
+	
+	// Return the equivalence (A' \ B')'
+}
 /***************************************************************
 * Function: static MatrixObj<DataObject*>::initRange()
 * Purpose : Range initialization for cell array objects
@@ -1114,3 +1323,90 @@ template <> void MatrixObj<DataObject*>::initRange(DataObject** pStart, DataObje
 	// Fill the range with empty cell array objects
 	std::uninitialized_fill(pStart, pEnd, new MatrixObj<DataObject*>());
 }
+
+
+
+
+//Specialized get and set methods for the complex class
+template<> double MatrixObj<Complex128>::getScalarDouble() const {
+	return m_pElements[0].real();
+}
+template<> double MatrixObj<Complex64>::getScalarDouble() const {
+	return m_pElements[0].real();
+}
+template<> void* MatrixObj<Complex128>::getData() const {
+	#ifdef MCVM_USE_GC
+	double* val = (double*) GC_MALLOC(sizeof(double)*m_numElements);
+	#else
+	double *val= (double*) malloc(sizeof(double)*m_numElements);
+	#endif 
+	for (unsigned int i = 0; i < m_numElements; i++) {
+		val[i] = m_pElements[i].real();
+	}
+	return (void*) val;
+}
+template<> void MatrixObj<Complex128>::setData(void *data) {
+	double* tempData = (double*) data;
+	for (unsigned int i = 0; i < m_numElements; i++) {
+		m_pElements[i].real(tempData[i]);
+	}
+}
+template<> void* MatrixObj<Complex64>::getData() const {
+	#ifdef MCVM_USE_GC
+	float* val = (float*) GC_MALLOC(sizeof(float)*m_numElements);
+	#else
+	float* val = (float*) malloc(sizeof(float)*m_numElements);
+#endif
+	for (unsigned int i = 0; i < m_numElements; i++) {
+		val[i] = m_pElements[i].real();
+	}
+	return (void*) val;
+}
+template<> void MatrixObj<Complex64>::setData(void *data) {
+	float* tempData = (float*) data;
+	for (unsigned int i = 0; i < m_numElements; i++) {
+		m_pElements[i].real(tempData[i]);
+	}
+}
+template<> void* MatrixObj<Complex128>::getImagData() const {
+	#ifdef MCVM_USE_GC
+	double* val = (double*) GC_MALLOC(sizeof(double)*m_numElements);
+	#else
+	
+	double* val = (double*)malloc(sizeof(double)*m_numElements);
+	#endif
+	for (unsigned int i = 0; i < m_numElements; i++) {
+		val[i] = m_pElements[i].imag();
+	}
+	return (void*) val;
+}
+template<> void MatrixObj<Complex128>::setImagData(void *data) {
+	double* tempData = (double*) data;
+	for (unsigned int i = 0; i < m_numElements; i++) {
+		//double val=m_pElements[i].real();
+		
+		m_pElements[i].imag(tempData[i]);//std::complex<double>(val,tempData[i]);
+		
+	}
+}
+template<> void* MatrixObj<Complex64>::getImagData() const {
+	#ifdef MCVM_USE_GC
+	float* val = (float*) GC_MALLOC(sizeof(float)*m_numElements);
+	#else 
+	float* val = (float*) malloc(sizeof(float)*m_numElements);
+	#endif 
+	for (unsigned int i = 0; i < m_numElements; i++) {
+		val[i] = m_pElements[i].imag();
+	}
+	return (void*) val;
+}
+template<> void MatrixObj<Complex64>::setImagData(void *data) {
+	float* tempData = (float*) data;
+	for (unsigned int i = 0; i < m_numElements; i++) {
+		m_pElements[i].imag(tempData[i]);
+	}
+}
+template <> double MatrixObj<DataObject*>::getScalarDouble()const {
+	return -1;
+}
+

@@ -22,6 +22,7 @@
 
 // Header files
 #include <complex>
+#include<stdint.h>
 
 // Pointer size on the current platform
 const size_t PLATFORM_POINTER_SIZE = sizeof(void*);
@@ -35,21 +36,21 @@ const size_t PLATFORM_ALIGNMENT = PLATFORM_POINTER_SIZE;
 #elif (POINTER_SIZE == 8)
 #define PLATFORM_64BIT
 #endif
-
+#define MCVM_USE_GC
 // Basic byte type
 typedef unsigned char byte;
 
 // Signed integer types
-typedef signed char      int8;
-typedef signed short     int16;
-typedef signed int       int32;
-typedef signed long long int64;
+typedef  int8_t      int8;
+typedef  int16_t     int16;
+typedef  int32_t       int32;
+typedef  int64_t int64;
 
 // Unsigned integer types
-typedef unsigned char      uint8;
-typedef unsigned short     uint16;
-typedef unsigned int       uint32;
-typedef unsigned long long uint64;
+typedef uint8_t      uint8;
+typedef uint16_t     uint16;
+typedef uint32_t       uint32;
+typedef uint64_t uint64;
 
 // Floating point types
 typedef float  float32;
@@ -58,6 +59,7 @@ typedef double float64;
 // Complex number types
 typedef std::complex<float32> Complex64;
 typedef std::complex<float64> Complex128;
+
 
 // Macro to obtain the offset of a class/struct member variable
 #define MEMBER_OFFSET(CLASS, MEMBER) ((uint8*)&((CLASS*)PLATFORM_POINTER_SIZE)->MEMBER - (uint8*)PLATFORM_POINTER_SIZE)

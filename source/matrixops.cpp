@@ -64,6 +64,40 @@ DataObject* matrixMultOp(const DataObject* pLeftObj, const DataObject* pRightObj
 		return MatrixC128Obj::matrixMult(pLMatrix, pRMatrix);
 	}
 	
+	if (pLeftObj->getType() == DataObject::MATRIX_C64 || pRightObj->getType() == DataObject::MATRIX_C64)
+	{
+		// Convert the objects to 128-bit complex matrices, if necessary
+		if (pLeftObj->getType() != DataObject::MATRIX_C64)	 pLeftObj = pLeftObj->convert(DataObject::MATRIX_C64);
+		if (pRightObj->getType() != DataObject::MATRIX_C64) pRightObj = pRightObj->convert(DataObject::MATRIX_C64);
+	
+		// Get typed pointers to the values
+		MatrixC64Obj* pLMatrix = (MatrixC64Obj*)pLeftObj;
+		MatrixC64Obj* pRMatrix = (MatrixC64Obj*)pRightObj;
+	
+		// If the left matrix is a scalar
+		if (pLMatrix->isScalar())
+		{
+			// Perform scalar multiplication
+			return MatrixC64Obj::scalarMult(pRMatrix, pLMatrix->getScalar());
+		}
+	
+		// If the right matrix is a scalar
+		if (pRMatrix->isScalar())
+		{
+			// Perform scalar multiplication
+			return MatrixC64Obj::scalarMult(pLMatrix, pRMatrix->getScalar());
+		}
+	
+		// If the matrix dimensions are not compatible
+		if (!MatrixC64Obj::multCompatible(pLMatrix, pRMatrix))
+		{
+			// Throw an exception
+			throw RunError("incompatible matrix dimensions in matrix multiplication");
+		}
+	
+		// Perform the multiplication
+		return MatrixC64Obj::matrixMult(pLMatrix, pRMatrix);
+	}
 	// Convert the objects to 64-bit float matrices, if necessary
 	if (pLeftObj->getType() != DataObject::MATRIX_F64) 	pLeftObj = pLeftObj->convert(DataObject::MATRIX_F64);
 	if (pRightObj->getType() != DataObject::MATRIX_F64) pRightObj = pRightObj->convert(DataObject::MATRIX_F64);
@@ -116,6 +150,14 @@ DataObject* scalarMultOp(const DataObject* pLeftObj, float64 scalar)
 		return MatrixC128Obj::scalarMult(pMatrix, scalar);
 	}
 	
+	if (pLeftObj->getType() == DataObject::MATRIX_C64)
+	{
+		// Get a typed pointer to the matrix
+		MatrixC64Obj* pMatrix = (MatrixC64Obj*)pLeftObj;
+			
+		// Perform the operation
+		return MatrixC64Obj::scalarMult(pMatrix, scalar);
+	}
 	// Convert the object to 64-bit float matrix
 	pLeftObj = pLeftObj->convert(DataObject::MATRIX_F64);
 	

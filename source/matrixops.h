@@ -129,6 +129,18 @@ template <> inline Complex128 DivOp<Complex128>::op(Complex128 inA, Complex128 i
 	return inA / inB;
 }
 
+template <> inline Complex64 DivOp<Complex64>::op(Complex64 inA, Complex64 inB)
+{
+	// If B is 0
+	if (inB == Complex64(0))
+	{		
+		// The result is infinity
+		return (inA / std::abs(inA)) * FLOAT_INFINITY;
+	}
+		
+	// Perform the division
+	return inA / inB;
+}
 /***************************************************************
 * Class   : PowOp
 * Purpose : Function object for the exponentiation operator
@@ -223,6 +235,17 @@ template <> inline bool GreaterThanOp<Complex128>::op(Complex128 inA, Complex128
 		return (inA.imag() > inB.imag());
 }
 
+template <> inline bool GreaterThanOp<Complex64>::op(Complex64 inA, Complex64 inB)
+{
+	// Perform the comparison
+	if (inA.real() > inB.real())
+		return true;
+	else if (inA.real() < inB.real())
+		return false;
+	else
+		return (inA.imag() > inB.imag());
+}
+
 /***************************************************************
 * Class   : GreaterThanOp
 * Purpose : Function obj for the greater-than-eq (>=) operator
@@ -260,6 +283,16 @@ template <> inline bool GreaterThanEqOp<Complex128>::op(Complex128 inA, Complex1
 		return (inA.imag() >= inB.imag());
 }
 
+template <> inline bool GreaterThanEqOp<Complex64>::op(Complex64 inA, Complex64 inB)
+{
+	// Perform the comparison
+	if (inA.real() > inB.real())
+		return true;
+	else if (inA.real() < inB.real())
+		return false;
+	else
+		return (inA.imag() >= inB.imag());
+}
 /***************************************************************
 * Class   : LessThanOp
 * Purpose : Function object for the less-than (<) operator
@@ -297,6 +330,16 @@ template <> inline bool LessThanOp<Complex128>::op(Complex128 inA, Complex128 in
 		return (inA.imag() < inB.imag());
 }
 
+template <> inline bool LessThanOp<Complex64>::op(Complex64 inA, Complex64 inB)
+{
+	// Perform the comparison
+	if (inA.real() < inB.real())
+		return true;
+	else if (inA.real() > inB.real())
+		return false;
+	else
+		return (inA.imag() < inB.imag());
+}
 /***************************************************************
 * Class   : LessThanEqOp
 * Purpose : Function object for the less-than-eq (<=) operator
@@ -334,6 +377,16 @@ template <> inline bool LessThanEqOp<Complex128>::op(Complex128 inA, Complex128 
 		return (inA.imag() <= inB.imag());
 }
 
+template <> inline bool LessThanEqOp<Complex64>::op(Complex64 inA, Complex64 inB)
+{
+	// Perform the comparison
+	if (inA.real() < inB.real())
+		return true;
+	else if (inA.real() > inB.real())
+		return false;
+	else
+		return (inA.imag() <= inB.imag());
+}
 /***************************************************************
 * Class   : OrOp
 * Purpose : Function object for the logical OR operator
@@ -366,6 +419,11 @@ template <> inline bool OrOp<Complex128>::op(Complex128 inA, Complex128 inB)
 	return (std::abs(inA) || std::abs(inB));
 }
 
+template <> inline bool OrOp<Complex64>::op(Complex64 inA, Complex64 inB)
+{
+	// Perform the logical OR of the absolute values
+	return (std::abs(inA) || std::abs(inB));
+}
 /***************************************************************
 * Class   : AndOp
 * Purpose : Function object for the logical AND operator

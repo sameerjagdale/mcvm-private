@@ -26,7 +26,8 @@
 #include "objects.h"
 #include "utility.h"
 #include <unordered_map>
-
+#include<gc_cpp.h>
+#include<gc/gc_allocator.h>
 /***************************************************************
 * Class   : Environment
 * Purpose : Represent an execution environment

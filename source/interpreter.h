@@ -49,7 +49,7 @@
 #include "lambdaexpr.h"
 #include "typeinfer.h"
 #include "analysis_typeinfer.h"
-
+#include "mexfunction.h"
 /***************************************************************
 * Class   : Interpreter
 * Purpose : Interpret the intermediate representation (IIR)
@@ -72,7 +72,8 @@ public:
 
 	// Method to perform a function call
 	static ArrayObj* callFunction(Function* pFunction, ArrayObj* pArguments, size_t nargout = 0);
-
+	//!<Method to call a mex function
+	static ArrayObj* callMexFunction(MexFunction* pFunction, ArrayObj* pArguments, size_t nargout = 0);
 	// Method to evaluate a statement
 	static void execStatement(const Statement* pStmt, Environment* pEnv);
 
@@ -138,7 +139,9 @@ public:
 
 	// Method to load an m-file
 	static CompUnits loadMFile(const std::string& fileName,  const bool bindScript = true);
-
+	//!<Method to load an Mex-File
+	static MexFunction* loadMexFile(const std::string& fileName);
+	
 	// Method to load compilation units for a command string
 	static CompUnits loadSrcText(const std::string& srcText, const std::string& unitName, const bool bindScript = true);
 
@@ -150,7 +153,7 @@ public:
 	
 	// Method to set a binding in the global environment
 	static void setBinding(const std::string& name, DataObject* pObject);
-
+	static DataObject* getBinding(const std::string&name);
 	// Method to get the symbols bound in the global environment
 	Environment::SymbolVec getGlobalSyms();
 	

@@ -157,3 +157,10 @@ template <> std::string MatrixObj<DataObject*>::toString() const
 	// Return the output string
 	return output;
 }
+
+template <> DataObject* MatrixObj<DataObject*>::getCell(long idx)const  {
+	return m_pElements[idx];
+}
+template<> void MatrixObj<DataObject*>::setCell(long idx,DataObject *obj){
+	m_pElements[idx]=obj;
+}

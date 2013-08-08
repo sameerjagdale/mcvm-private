@@ -31,7 +31,7 @@
 // Floating-point infinity constants
 const float FLOAT_INFINITY = std::numeric_limits<float>::infinity();
 const double DOUBLE_INFINITY = std::numeric_limits<double>::infinity();
-
+const double DOUBLE_EPSILON=std::numeric_limits<double>::epsilon();
 // Trigonometric constants
 const double PI			= 3.14159265358979323846;
 const double HALF_PI	= 0.5 * PI;

@@ -31,5 +31,6 @@ template <> void MatrixObj<DataObject*>::allocMatrix();
 
 // Template specialization of the string representation method for cell arrays
 template <> std::string MatrixObj<DataObject*>::toString() const;
-
+template <> DataObject* MatrixObj<DataObject*>::getCell(long idx)const ;
+template <> void MatrixObj<DataObject*>::setCell(long idx,DataObject *val);
 #endif // #ifndef CELLARRAYOBJ_H_ 

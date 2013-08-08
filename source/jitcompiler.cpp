@@ -36,7 +36,7 @@
 #include <llvm/ExecutionEngine/GenericValue.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/ManagedStatic.h>
-
+#include <tr1/unordered_map>
 
 #include "jitcompiler.h"
 #include "runtimebase.h"
@@ -50,7 +50,6 @@
 
 #include <analysis/typeinference/analysisfw_typeinference.h>
 #include <analysis/value/value.h>
-
 // Config variable to enable/disable the JIT compiler
 ConfigVar JITCompiler::s_jitEnableVar("jit_enable", ConfigVar::BOOL, "false");
 

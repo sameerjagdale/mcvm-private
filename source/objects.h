@@ -54,9 +54,17 @@ public:
 	{
 		UNKNOWN,
 		MATRIX_I32,
+		MATRIX_I8,
+		MATRIX_I16,
+		MATRIX_I64,
+		MATRIX_UI32,
+		MATRIX_UI8,
+		MATRIX_UI16,
+		MATRIX_UI64,
 		MATRIX_F32,
 		MATRIX_F64,
 		MATRIX_C128,
+		MATRIX_C64,
 		LOGICALARRAY,
 		CHARARRAY,
 		CELLARRAY,
@@ -98,7 +106,74 @@ public:
 	
 	// Accessor to get the type of this data object
 	Type getType() const { return m_type; }
+	// Accessor to get the matrix dimensions
+	virtual const DimVector& getDataSize() const {
+		return *(new DimVector());
+	}
+	// Accessor to get the number of dimensions
+	virtual const size_t getNumDims() const {
+		return 0;
+	}
+
+	// Accessor to get the number of matrix elements
+	virtual const size_t getNumElems() const {
+		return 0;
+	}
+
+	virtual void setM(long m) {
+
+	}
+	virtual void setN(long n) {
+
+	}
+	virtual void setDimensions(long* dim, long ndim) {
+
+	}
+	virtual double getScalarDouble() const {
+		return 0;
+	}
+	virtual bool isScalar() const {
+		return false;
+	}
+// Method to test if the matrix is a vector
+	virtual bool isVector() const {
+		return false;
+	}
+
+// Method to test if the matrix is square
+	virtual bool isSquare() const {
+		return false;
+	}
+
+// Method to test if the matrix is is empty
+	virtual bool isEmpty() const {
+		return false;
+	}
+	//get data from maxtrixObj
+	virtual void* getData() const {
+		return NULL;
+	}
+	//set data to MatrixObj
+	virtual void setData(void* data) {
+
+	}
+	virtual void* getImagData() const {
+		return NULL;
+	}
+	virtual void setImagData(void*) {
+
+	}
+// Method to test if this matrix is bidimensional
+	virtual bool is2D() const {
+		return false;
+	}
+//cell support
+	virtual DataObject* getCell(long  idx)const {
+		return NULL;
+	}
+	virtual void setCell(long idx,DataObject* obj){
 	
+	}
 protected:
 	
 	// Type of this data object
